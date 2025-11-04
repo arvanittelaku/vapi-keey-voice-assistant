@@ -11,6 +11,8 @@ class GHLToVapiWebhook {
 
   setupRoutes() {
     console.log("📝 GHLToVapiWebhook: Registering routes...")
+    console.log("📝 GHL: this.app exists?", !!this.app)
+    console.log("📝 GHL: this.app type:", typeof this.app)
     
     // Health check
     this.app.get("/health", (req, res) => {

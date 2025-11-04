@@ -12,9 +12,17 @@ class VapiFunctionHandler {
 
   setupRoutes() {
     console.log("📝 VapiFunctionHandler: Registering /webhook/vapi route...")
+    console.log("📝 this.app exists?", !!this.app)
+    console.log("📝 this.app type:", typeof this.app)
+    
+    if (!this.app) {
+      console.error("❌ ERROR: this.app is undefined in VapiFunctionHandler!")
+      return
+    }
     
     // TEST ROUTE - Verify handler is working
     this.app.get("/webhook/vapi", (req, res) => {
+      console.log("✅ GET /webhook/vapi hit!")
       res.json({ 
         status: "VapiFunctionHandler is working!",
         message: "Use POST to this endpoint for function calls"
