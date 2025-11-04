@@ -163,10 +163,15 @@ class VapiFunctionHandler {
       }
 
       // Actually check GHL calendar
+      // Check for a 1-hour consultation slot
+      const startTime = dt.toISO()
+      const endTime = dt.plus({ hours: 1 }).toISO()
+      
       const availability = await this.ghlClient.checkCalendarAvailability(
         calendarId,
-        dt.toISO(),
-        timezone
+        startTime,
+        endTime,
+        tz
       )
 
       if (availability.available) {
@@ -232,21 +237,35 @@ class VapiFunctionHandler {
         }
       }
 
-      // Normalize phone number
-      let normalizedPhone = phone
-      try {
-        const phoneNumber = parsePhoneNumber(phone, 'GB')
-        if (phoneNumber) {
-          normalizedPhone = phoneNumber.format('E.164')
+      // Validate required fields
+      if (!fullName && !contactId) {
+        return {
+          success: false,
+          message: "I need your name to book the appointment. Could you please tell me your full name?"
         }
-      } catch (e) {
-        console.warn("Could not parse phone number:", phone)
       }
 
-      // Split full name
-      const nameParts = fullName.trim().split(' ')
-      const firstName = nameParts[0] || ""
-      const lastName = nameParts.slice(1).join(' ') || ""
+      // Normalize phone number
+      let normalizedPhone = phone
+      if (phone) {
+        try {
+          const phoneNumber = parsePhoneNumber(phone, 'GB')
+          if (phoneNumber) {
+            normalizedPhone = phoneNumber.format('E.164')
+          }
+        } catch (e) {
+          console.warn("Could not parse phone number:", phone)
+        }
+      }
+
+      // Split full name (if provided)
+      let firstName = ""
+      let lastName = ""
+      if (fullName) {
+        const nameParts = fullName.trim().split(' ')
+        firstName = nameParts[0] || ""
+        lastName = nameParts.slice(1).join(' ') || ""
+      }
 
       // Create or update contact in GHL
       const calendarId = process.env.GHL_CALENDAR_ID
@@ -254,28 +273,36 @@ class VapiFunctionHandler {
         console.warn("⚠️  GHL_CALENDAR_ID not configured, simulating booking")
         return {
           success: true,
-          message: `Perfect! I've booked your consultation for ${bookingDate} at ${bookingTime}. You'll receive a confirmation email at ${email} shortly. Is there anything else I can help you with?`
+          message: `Perfect! I've booked your consultation for ${dateStr} at ${timeStr}. You'll receive a confirmation email${email ? ` at ${email}` : ''} shortly. Is there anything else I can help you with?`
         }
       }
 
-      // Create/update contact first
-      const contact = await this.ghlClient.createContact({
-        firstName,
-        lastName,
-        email,
-        phone: normalizedPhone,
-        source: "Voice Assistant - Consultation Booking"
-      })
-
-      console.log(`✅ Contact created/updated: ${contact.id || contact.contact?.id}`)
+      // Determine which contact ID to use
+      let finalContactId = contactId
+      
+      // If no contactId provided, create/update contact first
+      if (!contactId) {
+        const contact = await this.ghlClient.createContact({
+          firstName,
+          lastName,
+          email,
+          phone: normalizedPhone,
+          source: "Voice Assistant - Consultation Booking"
+        })
+        
+        finalContactId = contact.id || contact.contact?.id
+        console.log(`✅ Contact created/updated: ${finalContactId}`)
+      } else {
+        console.log(`✅ Using existing contact: ${finalContactId}`)
+      }
 
       // Book the appointment
       const appointment = await this.ghlClient.createCalendarAppointment(
         calendarId,
-        contact.id || contact.contact?.id,
+        finalContactId,
         dt.toISO(),
-        timezone,
-        "Keey Property Consultation"
+        tz,
+        appointmentTitle || "Keey Property Consultation"
       )
 
       console.log(`✅ Appointment booked: ${appointment.id}`)
@@ -283,7 +310,7 @@ class VapiFunctionHandler {
       return {
         success: true,
         appointmentId: appointment.id,
-        message: `Excellent! I've confirmed your consultation for ${bookingDate} at ${bookingTime}. You'll receive a confirmation email at ${email} with all the details. We're looking forward to speaking with you!`
+        message: `Excellent! I've confirmed your consultation for ${dateStr} at ${timeStr}.${email ? ` You'll receive a confirmation email at ${email} with all the details.` : ''} We're looking forward to speaking with you!`
       }
 
     } catch (error) {

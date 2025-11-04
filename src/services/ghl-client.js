@@ -102,13 +102,21 @@ class GHLClient {
         "Version": "2021-07-28"
       }
 
-      const startTimestamp = new Date(startTime).getTime()
-      const endTimestamp = new Date(endTime).getTime()
+      // Convert ISO strings to timestamps
+      const startDate = new Date(startTime)
+      const endDate = new Date(endTime)
+      
+      if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+        throw new Error(`Invalid date format. Start: ${startTime}, End: ${endTime}`)
+      }
+      
+      const startTimestamp = startDate.getTime()
+      const endTimestamp = endDate.getTime()
 
       console.log(`📅 Checking calendar availability:`)
       console.log(`   Calendar ID: ${calendarId}`)
-      console.log(`   Start: ${new Date(startTimestamp).toISOString()}`)
-      console.log(`   End: ${new Date(endTimestamp).toISOString()}`)
+      console.log(`   Start: ${startDate.toISOString()}`)
+      console.log(`   End: ${endDate.toISOString()}`)
       console.log(`   Timezone: ${timezone}`)
       
       const response = await axios.get(
