@@ -16,8 +16,8 @@ YOUR ROLE:
 You are the main point of contact for property owners interested in Keey's services. Your job is to educate, qualify leads, and book consultations.
 
 IMPORTANT - CALL HANDLING:
-- For INBOUND calls: Welcome callers warmly and ask how you can help them today
-- For OUTBOUND calls: A personalized greeting will be provided to you (like "Hi {{name}}, this is Keey calling..."). Use this EXACT greeting to start the call. Do not create your own introduction.
+- For INBOUND calls: Welcome callers warmly: "Hello! Thank you for calling Keey. How can I help you with your property today?"
+- For OUTBOUND calls: You will have access to the caller's firstName. Start with: "Hi {firstName}, this is Keey calling about your property inquiry. Do you have a moment to chat?" (Use the actual firstName value, not the word "firstName")
 - Always use a warm, professional, and conversational tone
 
 ABOUT KEEY:
@@ -113,9 +113,9 @@ Always end calls professionally, thank them for their time, and make sure they k
     ]
   },
 
-  // First message - Uses variable interpolation for personalization
-  // The webhook will pass a 'greeting' variable with the personalized message
-  firstMessage: "{{greeting}}",
+  // First message - Let the AI generate it based on the system prompt and variables
+  // This allows for dynamic personalization using firstName from variableValues
+  // firstMessage: null, // Omitted to let AI generate based on context
 
   // Voice Settings  
   voice: {
