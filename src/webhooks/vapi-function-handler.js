@@ -184,9 +184,12 @@ class VapiFunctionHandler {
       }
 
     } catch (error) {
-      console.error("❌ Error checking calendar:", error)
+      console.error("❌ Error checking calendar:", error.message)
+      console.error("❌ Stack trace:", error.stack)
+      console.error("❌ Full error:", JSON.stringify(error, null, 2))
       return {
         success: false,
+        error: error.message,
         message: "I'm having trouble checking the calendar right now. Let me take your details and someone from our team will call you back shortly to confirm a time. What's your preferred contact number?"
       }
     }
@@ -284,9 +287,12 @@ class VapiFunctionHandler {
       }
 
     } catch (error) {
-      console.error("❌ Error booking appointment:", error)
+      console.error("❌ Error booking appointment:", error.message)
+      console.error("❌ Stack trace:", error.stack)
+      console.error("❌ Full error:", JSON.stringify(error, null, 2))
       return {
         success: false,
+        error: error.message,
         message: "I've noted all your details, but I'm having a small technical issue completing the booking right now. Don't worry - our team has your information and will call you within the next hour to confirm your consultation time. Is there anything else I can help you with?"
       }
     }
