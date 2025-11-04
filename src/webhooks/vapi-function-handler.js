@@ -22,7 +22,7 @@ class VapiFunctionHandler {
         // Handle different message types
         if (message?.type === "function-call") {
           const { functionCall } = message
-          const { name, parameters } = functionCall
+          const { id, name, parameters } = functionCall
 
           console.log(`🛠️  Function Called: ${name}`)
           console.log(`📋 Parameters:`, parameters)
@@ -54,7 +54,14 @@ class VapiFunctionHandler {
           }
 
           console.log("✅ Function result:", result)
-          return res.json({ result })
+          
+          // Return in Vapi's expected format
+          return res.json({
+            functionCall: {
+              id: id,
+              result: JSON.stringify(result)
+            }
+          })
         }
 
         // Handle other message types
@@ -79,19 +86,27 @@ class VapiFunctionHandler {
    * Check calendar availability
    */
   async checkCalendarAvailability(params) {
-    const { timezone, requestedDate, requestedTime } = params
+    const { timezone, requestedDate, requestedTime, date, time } = params
+    
+    // Support both parameter formats
+    const dateStr = date || requestedDate
+    const timeStr = time || requestedTime
+    const tz = timezone || "Europe/London"
 
     try {
       console.log(`\n📅 Checking calendar availability...`)
-      console.log(`   Date: ${requestedDate}`)
-      console.log(`   Time: ${requestedTime}`)
-      console.log(`   Timezone: ${timezone}`)
+      console.log(`   Date: ${dateStr}`)
+      console.log(`   Time: ${timeStr}`)
+      console.log(`   Timezone: ${tz}`)
 
-      // Parse the requested date/time
-      const dateTimeStr = `${requestedDate} ${requestedTime}`
-      const dt = DateTime.fromFormat(dateTimeStr, "MMMM d, yyyy h:mm a", { 
-        zone: timezone || "Europe/London" 
-      })
+      // Try to parse as ISO format first (2025-11-10 14:00)
+      let dt = DateTime.fromISO(`${dateStr}T${timeStr}`, { zone: tz })
+      
+      // If that fails, try natural language format
+      if (!dt.isValid) {
+        const dateTimeStr = `${dateStr} ${timeStr}`
+        dt = DateTime.fromFormat(dateTimeStr, "MMMM d, yyyy h:mm a", { zone: tz })
+      }
 
       if (!dt.isValid) {
         return {
@@ -163,22 +178,31 @@ class VapiFunctionHandler {
    * Book calendar appointment
    */
   async bookCalendarAppointment(params) {
-    const { email, phone, fullName, timezone, bookingDate, bookingTime } = params
+    const { email, phone, fullName, timezone, bookingDate, bookingTime, contactId, date, time, appointmentTitle } = params
+    
+    // Support both parameter formats
+    const dateStr = date || bookingDate
+    const timeStr = time || bookingTime
+    const tz = timezone || "Europe/London"
 
     try {
       console.log(`\n📅 Booking calendar appointment...`)
       console.log(`   Name: ${fullName}`)
       console.log(`   Email: ${email}`)
       console.log(`   Phone: ${phone}`)
-      console.log(`   Date: ${bookingDate}`)
-      console.log(`   Time: ${bookingTime}`)
-      console.log(`   Timezone: ${timezone}`)
+      console.log(`   Contact ID: ${contactId}`)
+      console.log(`   Date: ${dateStr}`)
+      console.log(`   Time: ${timeStr}`)
+      console.log(`   Timezone: ${tz}`)
 
-      // Parse the booking date/time
-      const dateTimeStr = `${bookingDate} ${bookingTime}`
-      const dt = DateTime.fromFormat(dateTimeStr, "MMMM d, yyyy h:mm a", { 
-        zone: timezone || "Europe/London" 
-      })
+      // Try to parse as ISO format first (2025-11-10 14:00)
+      let dt = DateTime.fromISO(`${dateStr}T${timeStr}`, { zone: tz })
+      
+      // If that fails, try natural language format
+      if (!dt.isValid) {
+        const dateTimeStr = `${dateStr} ${timeStr}`
+        dt = DateTime.fromFormat(dateTimeStr, "MMMM d, yyyy h:mm a", { zone: tz })
+      }
 
       if (!dt.isValid) {
         return {
