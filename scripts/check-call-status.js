@@ -6,8 +6,7 @@ async function checkCallStatus() {
   
   // Get the call IDs from the user's tests
   const callIds = [
-    "019a4f30-31d9-7335-956d-563411faf66d", // Test 1
-    "019a4f31-0e8d-7779-86bc-4f3022fea6b3"  // Test 2
+    "019a4f62-7c6e-7bb0-9a38-4eb697040a2d"  // Test personalized greeting - Sarah
   ]
 
   console.log("\n🔍 Checking Call Status")

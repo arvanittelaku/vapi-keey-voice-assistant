@@ -83,7 +83,8 @@ class GHLToVapiWebhook {
           region: region,
           callSource: "GHL Workflow",
           callType: "outbound",
-          triggeredAt: new Date().toISOString()
+          triggeredAt: new Date().toISOString(),
+          greeting: `Hi ${firstName}, this is Keey calling about your property inquiry. Do you have a moment to chat?` // Personalized greeting
         }
 
         // Initiate Vapi call
@@ -97,8 +98,7 @@ class GHLToVapiWebhook {
             name: `${firstName} ${lastName}`.trim()
           },
           assistantOverrides: {
-            variableValues: callMetadata,
-            firstMessage: `Hi ${firstName}, this is Keey calling about your property inquiry. Do you have a moment to chat?`
+            variableValues: callMetadata // greeting is now part of variableValues
           }
         }
 
@@ -166,7 +166,8 @@ class GHLToVapiWebhook {
           region: "London",
           callSource: "Manual Test",
           callType: "outbound-test",
-          triggeredAt: new Date().toISOString()
+          triggeredAt: new Date().toISOString(),
+          greeting: `Hi ${firstName || "Test"}, this is Keey calling. This is a test call to verify our voice assistant is working correctly. Can you hear me?` // Personalized greeting
         }
 
         const callData = {
@@ -177,8 +178,7 @@ class GHLToVapiWebhook {
             name: `${firstName || "Test"} ${lastName || "User"}`.trim()
           },
           assistantOverrides: {
-            variableValues: callMetadata,
-            firstMessage: `Hi ${firstName || "Test"}, this is Keey calling. This is a test call to verify our voice assistant is working correctly. Can you hear me?`
+            variableValues: callMetadata // greeting is now part of variableValues
           }
         }
 

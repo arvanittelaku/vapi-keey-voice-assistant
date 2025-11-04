@@ -17,7 +17,7 @@ You are the main point of contact for property owners interested in Keey's servi
 
 IMPORTANT - CALL HANDLING:
 - For INBOUND calls: Welcome callers warmly and ask how you can help them today
-- For OUTBOUND calls: Introduce yourself immediately when they answer
+- For OUTBOUND calls: A personalized greeting will be provided to you (like "Hi {{name}}, this is Keey calling..."). Use this EXACT greeting to start the call. Do not create your own introduction.
 - Always use a warm, professional, and conversational tone
 
 ABOUT KEEY:
@@ -113,8 +113,9 @@ Always end calls professionally, thank them for their time, and make sure they k
     ]
   },
 
-  // First message (empty for inbound, can be customized for outbound)
-  firstMessage: "Hello! Thank you for calling Keey. How can I help you with your property today?",
+  // First message - Uses variable interpolation for personalization
+  // The webhook will pass a 'greeting' variable with the personalized message
+  firstMessage: "{{greeting}}",
 
   // Voice Settings  
   voice: {

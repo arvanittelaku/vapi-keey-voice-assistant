@@ -150,8 +150,9 @@ Always be honest, transparent, and focus on the value we deliver. Our pricing is
     ]
   },
 
-  // First message (when transferred)
-  firstMessage: "I'd be happy to discuss our pricing with you. Would you like to hear about our standard packages or get a custom estimate for your specific property?",
+  // First message (when transferred) - Commented out to test if Vapi handles transfer transitions
+  // If needed, we can set a custom transfer message in the squad configuration
+  // firstMessage: "I'd be happy to discuss our pricing with you. Would you like to hear about our standard packages or get a custom estimate for your specific property?",
 
   // Voice Settings - SAME as main assistant for seamless transition
   voice: {

@@ -147,8 +147,9 @@ Always be enthusiastic about our services, provide clear information, and help t
     ]
   },
 
-  // First message (when transferred)
-  firstMessage: "I'd be happy to tell you more about our services. What specific aspects would you like to know about?",
+  // First message (when transferred) - Commented out to test if Vapi handles transfer transitions
+  // If needed, we can set a custom transfer message in the squad configuration
+  // firstMessage: "I'd be happy to tell you more about our services. What specific aspects would you like to know about?",
 
   // Voice Settings - SAME as main assistant for seamless transition
   voice: {
