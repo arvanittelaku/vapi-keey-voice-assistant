@@ -140,9 +140,26 @@ class GHLClient {
       )
 
       console.log("✅ Calendar availability check successful")
-      console.log(`📊 Found ${response.data?.slots?.length || 0} free slots`)
       
-      return response.data
+      // GHL API returns slots grouped by date: { "2025-11-05": { "slots": [...] } }
+      // Extract all slots from all dates
+      const allSlots = []
+      for (const dateKey in response.data) {
+        if (response.data[dateKey]?.slots) {
+          allSlots.push(...response.data[dateKey].slots)
+        }
+      }
+      
+      console.log(`📊 Found ${allSlots.length} free slots`)
+      if (allSlots.length > 0) {
+        console.log(`   First slot: ${allSlots[0]}`)
+      }
+      
+      // Return normalized structure
+      return {
+        slots: allSlots,
+        rawData: response.data
+      }
     } catch (error) {
       console.error(
         "❌ Error checking calendar availability:",

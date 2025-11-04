@@ -174,17 +174,20 @@ class VapiFunctionHandler {
         tz
       )
 
-      if (availability.available) {
+      // GHL API returns { slots: [...] }
+      const hasAvailableSlots = availability.slots && availability.slots.length > 0
+      
+      if (hasAvailableSlots) {
         return {
           success: true,
           available: true,
-          message: `Perfect! ${requestedDate} at ${requestedTime} is available. Would you like me to book this consultation for you?`
+          message: `Perfect! ${dateStr} at ${timeStr} is available. Would you like me to book this consultation for you?`
         }
       } else {
         return {
           success: true,
           available: false,
-          message: `I'm sorry, that time slot is already booked. We have availability at ${availability.nextAvailable || 'other times'}. Would that work for you?`
+          message: `I'm sorry, that time slot is already booked. We have availability at other times. Would that work for you?`
         }
       }
 
