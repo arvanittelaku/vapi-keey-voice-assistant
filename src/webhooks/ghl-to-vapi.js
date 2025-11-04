@@ -10,6 +10,8 @@ class GHLToVapiWebhook {
   }
 
   setupRoutes() {
+    console.log("📝 GHLToVapiWebhook: Registering routes...")
+    
     // Health check
     this.app.get("/health", (req, res) => {
       res.json({
