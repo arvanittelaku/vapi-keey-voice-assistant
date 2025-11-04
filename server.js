@@ -19,9 +19,19 @@ app.use((req, res, next) => {
   next()
 })
 
+// TEST: Register a route directly in server.js to confirm Express works
+app.get("/test-direct", (req, res) => {
+  res.json({ message: "Direct route in server.js works!" })
+})
+
 // Initialize webhook handlers - PASS THE APP TO THEM
 const ghlWebhook = new GHLToVapiWebhook(app)
 const vapiHandler = new VapiFunctionHandler(app)
+
+// TEST: Register another route AFTER handlers to see order
+app.get("/test-after", (req, res) => {
+  res.json({ message: "Route registered AFTER handlers works!" })
+})
 
 // Catch-all 404 handler
 app.use((req, res) => {
@@ -36,5 +46,17 @@ app.listen(port, () => {
   console.log(`   GHL Trigger: http://localhost:${port}/webhook/ghl-trigger-call`)
   console.log(`   Vapi Functions: http://localhost:${port}/webhook/vapi`)
   console.log(`   Test Endpoint: http://localhost:${port}/test/trigger-call`)
-  console.log(`   Health Check: http://localhost:${port}/health\n`)
+  console.log(`   Health Check: http://localhost:${port}/health`)
+  
+  // List all routes AFTER server starts
+  console.log(`\n📋 All Registered Routes:`)
+  if (app._router && app._router.stack) {
+    app._router.stack.forEach((middleware) => {
+      if (middleware.route) {
+        const methods = Object.keys(middleware.route.methods).join(',').toUpperCase()
+        console.log(`   ${methods} ${middleware.route.path}`)
+      }
+    })
+  }
+  console.log('\n')
 })
