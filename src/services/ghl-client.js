@@ -33,10 +33,11 @@ class GHLClient {
       console.log("   Contact ID:", response.data.contact?.id || response.data.id)
       return response.data
     } catch (error) {
-      console.error(
-        "❌ Error creating contact in GHL:",
-        error.response?.data || error.message
-      )
+      console.error("❌ Error creating contact in GHL")
+      console.error("   Status:", error.response?.status)
+      console.error("   Status Text:", error.response?.statusText)
+      console.error("   Error Data:", JSON.stringify(error.response?.data, null, 2))
+      console.error("   Full Response:", error.response)
       throw error
     }
   }
