@@ -1,0 +1,51 @@
+{
+  "name": "keey-voice-assistant",
+  "version": "1.0.0",
+  "description": "Vapi AI Voice Assistant for Keey Airbnb Property Management - handles inbound lead qualification and outbound sales calls",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js",
+    "check-env": "node scripts/check-env.js",
+    "deploy-squad": "node scripts/deploy-squad.js",
+    "create-squad": "node scripts/create-squad-only.js",
+    "deploy-main": "node scripts/deploy-main-assistant.js",
+    "deploy-services": "node scripts/deploy-services-assistant.js",
+    "deploy-pricing": "node scripts/deploy-pricing-assistant.js",
+    "deploy-all": "npm run deploy-main && npm run deploy-services && npm run deploy-pricing",
+    "test-webhook": "node scripts/test-webhook.js",
+    "test-ghl-integration": "node scripts/test-ghl.js",
+    "create-tools": "node scripts/create-vapi-tools.js",
+    "view-logs": "node scripts/view-call-logs.js",
+    "check-call": "node scripts/check-call-status.js",
+    "verify-squad": "node scripts/verify-squad.js",
+    "add-tools": "node scripts/add-tools-to-assistants.js"
+  },
+  "keywords": [
+    "vapi",
+    "ai",
+    "voice-assistant",
+    "keey",
+    "airbnb",
+    "property-management",
+    "gohighlevel",
+    "lead-qualification"
+  ],
+  "author": "Keey Property Management",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  },
+  "dependencies": {
+    "axios": "^1.6.0",
+    "dotenv": "^16.3.1",
+    "express": "^5.1.0",
+    "libphonenumber-js": "^1.12.25",
+    "luxon": "^3.7.2"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  }
+}
+

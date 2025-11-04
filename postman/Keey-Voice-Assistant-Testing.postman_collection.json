@@ -1,0 +1,112 @@
+{
+  "info": {
+    "name": "Keey Voice Assistant Testing",
+    "description": "Test collection for Keey Voice Assistant with GHL integration",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Health Check",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{BASE_URL}}/health",
+          "host": ["{{BASE_URL}}"],
+          "path": ["health"]
+        }
+      }
+    },
+    {
+      "name": "Test Call - Manual Trigger",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"phone\": \"+12136721526\",\n  \"firstName\": \"John\",\n  \"lastName\": \"Doe\",\n  \"email\": \"john.doe@example.com\",\n  \"contactId\": \"test-123\"\n}"
+        },
+        "url": {
+          "raw": "{{BASE_URL}}/test/trigger-call",
+          "host": ["{{BASE_URL}}"],
+          "path": ["test", "trigger-call"]
+        }
+      }
+    },
+    {
+      "name": "GHL Webhook - Trigger Call",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"id\": \"contact_12345\",\n  \"firstName\": \"Jane\",\n  \"lastName\": \"Smith\",\n  \"email\": \"jane.smith@example.com\",\n  \"phone\": \"+12136721526\",\n  \"address1\": \"123 Property Street\",\n  \"city\": \"Los Angeles\",\n  \"postalCode\": \"90001\",\n  \"customField\": {\n    \"bedrooms\": \"2\",\n    \"region\": \"US\"\n  }\n}"
+        },
+        "url": {
+          "raw": "{{BASE_URL}}/webhook/ghl-trigger-call",
+          "host": ["{{BASE_URL}}"],
+          "path": ["webhook", "ghl-trigger-call"]
+        }
+      }
+    },
+    {
+      "name": "GHL Webhook - London Property",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"id\": \"london_001\",\n  \"firstName\": \"Michael\",\n  \"lastName\": \"Thompson\",\n  \"email\": \"m.thompson@example.com\",\n  \"phone\": \"+12136721526\",\n  \"address1\": \"45 Kensington Road\",\n  \"city\": \"Los Angeles\",\n  \"postalCode\": \"90001\",\n  \"customField\": {\n    \"bedrooms\": \"3\",\n    \"region\": \"US\"\n  }\n}"
+        },
+        "url": {
+          "raw": "{{BASE_URL}}/webhook/ghl-trigger-call",
+          "host": ["{{BASE_URL}}"],
+          "path": ["webhook", "ghl-trigger-call"]
+        }
+      }
+    },
+    {
+      "name": "GHL Webhook - Dubai Property",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"id\": \"dubai_001\",\n  \"firstName\": \"Sarah\",\n  \"lastName\": \"Ahmed\",\n  \"email\": \"sarah.ahmed@example.com\",\n  \"phone\": \"+12136721526\",\n  \"address1\": \"Los Angeles Street\",\n  \"city\": \"Los Angeles\",\n  \"postalCode\": \"90001\",\n  \"customField\": {\n    \"bedrooms\": \"2\",\n    \"region\": \"US\"\n  }\n}"
+        },
+        "url": {
+          "raw": "{{BASE_URL}}/webhook/ghl-trigger-call",
+          "host": ["{{BASE_URL}}"],
+          "path": ["webhook", "ghl-trigger-call"]
+        }
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "BASE_URL",
+      "value": "http://localhost:3000",
+      "type": "string"
+    }
+  ]
+}
