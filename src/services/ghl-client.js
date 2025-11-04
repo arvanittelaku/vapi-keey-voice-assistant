@@ -5,25 +5,32 @@ class GHLClient {
   constructor() {
     this.apiKey = process.env.GHL_API_KEY
     this.locationId = process.env.GHL_LOCATION_ID
-    this.baseURL = "https://rest.gohighlevel.com/v1"
+    this.baseURL = "https://services.leadconnectorhq.com"  // NEW API
     this.headers = {
       Authorization: `Bearer ${this.apiKey}`,
       "Content-Type": "application/json",
+      "Version": "2021-07-28"
     }
   }
 
   // Create or update contact
   async createContact(contactData) {
     try {
+      const payload = {
+        ...contactData,
+        locationId: this.locationId
+      }
+      
+      console.log("📝 Creating contact in GHL...")
+      console.log("   Payload:", JSON.stringify(payload, null, 2))
+      
       const response = await axios.post(
         `${this.baseURL}/contacts/`,
-        {
-          ...contactData,
-          locationId: this.locationId
-        },
+        payload,
         { headers: this.headers }
       )
       console.log("✅ Contact created successfully in GHL")
+      console.log("   Contact ID:", response.data.contact?.id || response.data.id)
       return response.data
     } catch (error) {
       console.error(
@@ -73,13 +80,13 @@ class GHLClient {
   // Search for contact by email or phone
   async searchContact(email = null, phone = null) {
     try {
-      const params = {}
+      const params = { locationId: this.locationId }
       if (email) params.email = email
       if (phone) params.phone = phone
 
       const response = await axios.get(
         `${this.baseURL}/contacts/`,
-        { 
+        {
           headers: this.headers,
           params
         }
