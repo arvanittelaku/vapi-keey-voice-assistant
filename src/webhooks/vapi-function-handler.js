@@ -363,6 +363,8 @@ class VapiFunctionHandler {
       }
 
       // Create/update contact in GHL
+      // Note: Custom fields should be added separately after contact creation
+      // or configured in GHL to accept them in the contact creation payload
       const contact = await this.ghlClient.createContact({
         firstName,
         lastName,
@@ -371,11 +373,8 @@ class VapiFunctionHandler {
         address1: propertyAddress,
         city,
         postalCode: postcode,
-        customField: {
-          bedrooms: bedrooms?.toString(),
-          region: region,
-          lead_source: "Voice Assistant"
-        }
+        // Store bedrooms and region in tags or notes for now
+        tags: [region, bedrooms ? `${bedrooms} bedrooms` : null].filter(Boolean)
       })
 
       console.log(`✅ Contact created: ${contact.id || contact.contact?.id}`)
