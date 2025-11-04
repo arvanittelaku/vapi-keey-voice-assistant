@@ -1,0 +1,151 @@
+{
+  "info": {
+    "name": "Keey Voice Assistant - Complete Testing",
+    "description": "Comprehensive testing without real calls",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "1. Server Health Check",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{BASE_URL}}/health",
+          "host": ["{{BASE_URL}}"],
+          "path": ["health"]
+        }
+      }
+    },
+    {
+      "name": "2. Simulate GHL Trigger (Outbound Call)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"id\": \"contact_test_001\",\n  \"firstName\": \"Sarah\",\n  \"lastName\": \"Johnson\",\n  \"email\": \"sarah.johnson@example.com\",\n  \"phone\": \"+12136721526\",\n  \"address1\": \"123 Main Street\",\n  \"city\": \"London\",\n  \"postalCode\": \"SW1A 1AA\",\n  \"customField\": {\n    \"bedrooms\": \"3\",\n    \"region\": \"London\"\n  }\n}"
+        },
+        "url": {
+          "raw": "{{BASE_URL}}/webhook/ghl-trigger-call",
+          "host": ["{{BASE_URL}}"],
+          "path": ["webhook", "ghl-trigger-call"]
+        }
+      }
+    },
+    {
+      "name": "3. Test Vapi Function - Check Calendar Availability",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{WEBHOOK_SECRET}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"message\": {\n    \"type\": \"function-call\",\n    \"functionCall\": {\n      \"id\": \"test-function-call-001\",\n      \"name\": \"check_calendar_availability\",\n      \"parameters\": {\n        \"date\": \"2025-11-10\",\n        \"time\": \"14:00\",\n        \"timezone\": \"Europe/London\"\n      }\n    }\n  }\n}"
+        },
+        "url": {
+          "raw": "{{BASE_URL}}/webhook/vapi",
+          "host": ["{{BASE_URL}}"],
+          "path": ["webhook", "vapi"]
+        }
+      }
+    },
+    {
+      "name": "4. Test Vapi Function - Book Appointment",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{WEBHOOK_SECRET}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"message\": {\n    \"type\": \"function-call\",\n    \"functionCall\": {\n      \"id\": \"test-function-call-002\",\n      \"name\": \"book_appointment\",\n      \"parameters\": {\n        \"contactId\": \"contact_test_001\",\n        \"date\": \"2025-11-10\",\n        \"time\": \"14:00\",\n        \"timezone\": \"Europe/London\",\n        \"appointmentTitle\": \"Property Consultation - Test\"\n      }\n    }\n  }\n}"
+        },
+        "url": {
+          "raw": "{{BASE_URL}}/webhook/vapi",
+          "host": ["{{BASE_URL}}"],
+          "path": ["webhook", "vapi"]
+        }
+      }
+    },
+    {
+      "name": "5. Test Vapi Function - Create Contact (Inbound)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{WEBHOOK_SECRET}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"message\": {\n    \"type\": \"function-call\",\n    \"functionCall\": {\n      \"id\": \"test-function-call-003\",\n      \"name\": \"create_contact\",\n      \"parameters\": {\n        \"firstName\": \"Michael\",\n        \"lastName\": \"Chen\",\n        \"email\": \"michael.chen@example.com\",\n        \"phone\": \"+447700900123\",\n        \"propertyAddress\": \"456 Oxford Street\",\n        \"city\": \"London\",\n        \"postcode\": \"W1D 1BS\",\n        \"bedrooms\": \"2\",\n        \"region\": \"London\"\n      }\n    }\n  }\n}"
+        },
+        "url": {
+          "raw": "{{BASE_URL}}/webhook/vapi",
+          "host": ["{{BASE_URL}}"],
+          "path": ["webhook", "vapi"]
+        }
+      }
+    },
+    {
+      "name": "6. Test Manual Call Trigger",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"phone\": \"+12136721526\",\n  \"firstName\": \"TestUser\",\n  \"lastName\": \"ForTransfer\",\n  \"email\": \"test@example.com\",\n  \"contactId\": \"transfer-test-001\"\n}"
+        },
+        "url": {
+          "raw": "{{BASE_URL}}/test/trigger-call",
+          "host": ["{{BASE_URL}}"],
+          "path": ["test", "trigger-call"]
+        }
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "BASE_URL",
+      "value": "https://vapi-keey-voice-assistant-production.up.railway.app",
+      "type": "string"
+    },
+    {
+      "key": "WEBHOOK_SECRET",
+      "value": "d8cde4628cf511b5cf14c7c106154e226ee7721ba5235319faeac5c2562988aa",
+      "type": "string"
+    }
+  ]
+}
+

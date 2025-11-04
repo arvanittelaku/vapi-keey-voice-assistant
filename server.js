@@ -10,13 +10,18 @@ console.log("=".repeat(50))
 const app = express()
 const port = process.env.PORT || 3000
 
-// Initialize webhook handlers
-const ghlWebhook = new GHLToVapiWebhook()
-const vapiHandler = new VapiFunctionHandler()
+// Add middleware
+app.use(express.json())
 
-// Mount both handlers on the same app
-app.use(ghlWebhook.app)
-app.use(vapiHandler.app)
+// Logging middleware
+app.use((req, res, next) => {
+  console.log(`📥 ${new Date().toISOString()} - ${req.method} ${req.path}`)
+  next()
+})
+
+// Initialize webhook handlers - PASS THE APP TO THEM
+const ghlWebhook = new GHLToVapiWebhook(app)
+const vapiHandler = new VapiFunctionHandler(app)
 
 // Start server
 app.listen(port, () => {

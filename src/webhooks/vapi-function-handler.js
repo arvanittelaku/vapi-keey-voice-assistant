@@ -4,31 +4,13 @@ const { parsePhoneNumber } = require("libphonenumber-js")
 const { DateTime } = require("luxon")
 
 class VapiFunctionHandler {
-  constructor() {
-    this.app = express()
+  constructor(app) {
+    this.app = app
     this.ghlClient = new GHLClient()
-    this.setupMiddleware()
     this.setupRoutes()
   }
 
-  setupMiddleware() {
-    this.app.use(express.json())
-    this.app.use((req, res, next) => {
-      console.log(`📥 ${new Date().toISOString()} - ${req.method} ${req.path}`)
-      next()
-    })
-  }
-
   setupRoutes() {
-    // Health check
-    this.app.get("/health", (req, res) => {
-      res.json({ 
-        status: "healthy",
-        service: "Vapi Function Handler",
-        timestamp: new Date().toISOString()
-      })
-    })
-
     // Vapi Function Call Webhook
     this.app.post("/webhook/vapi", async (req, res) => {
       try {

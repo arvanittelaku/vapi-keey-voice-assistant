@@ -175,6 +175,11 @@ Always end calls professionally, thank them for their time, and make sure they k
     "conversation-update"
   ],
   
+  // Tools - Must be attached manually in Vapi Dashboard:
+  // 1. transfer_call_keey (e428aef0-bbd6-4870-aa42-96d08480abe7)
+  // 2. check_calendar_availability_keey (22eb8501-80fb-4971-87e8-6f0a88ac5eab)
+  // 3. book_calendar_appointment_keey (d25e90cd-e6dc-423f-9719-96ca8c6541cb)
+  
   serverUrlSecret: process.env.WEBHOOK_SECRET || undefined,
 }
 

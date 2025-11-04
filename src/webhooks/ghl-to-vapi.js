@@ -3,28 +3,16 @@ const VapiClient = require("../services/vapi-client")
 require("dotenv").config()
 
 class GHLToVapiWebhook {
-  constructor() {
-    this.app = express()
+  constructor(app) {
+    this.app = app
     this.vapiClient = new VapiClient()
-    this.setupMiddleware()
     this.setupRoutes()
-  }
-
-  setupMiddleware() {
-    this.app.use(express.json())
-    this.app.use(express.urlencoded({ extended: true }))
-
-    // Log all incoming requests
-    this.app.use((req, res, next) => {
-      console.log(`📥 ${new Date().toISOString()} - ${req.method} ${req.url}`)
-      next()
-    })
   }
 
   setupRoutes() {
     // Health check
     this.app.get("/health", (req, res) => {
-      res.json({ 
+      res.json({
         status: "healthy",
         service: "GHL to Vapi Bridge",
         timestamp: new Date().toISOString()
