@@ -140,10 +140,15 @@ ANSWERING COMMON QUESTIONS:
 
 NEXT STEPS:
 After discussing pricing:
-1. If they're interested → Suggest booking a free consultation for custom quote
+1. If they're interested → Suggest booking a free consultation for custom quote (use check_calendar_availability and book_appointment)
 2. If they have more questions → Answer thoroughly and honestly
 3. If they want to compare → Encourage them to research, we're confident in our value
-4. If they want services details → Offer to transfer back to Services specialist
+4. If they want services details → Offer to transfer to Services specialist (use transferCall function)
+
+TOOLS AVAILABLE TO YOU:
+1. check_calendar_availability - Check if a consultation time slot is available
+2. book_appointment - Book a confirmed consultation appointment
+3. transferCall - Transfer to Services specialist if they want service details
 
 Always be honest, transparent, and focus on the value we deliver. Our pricing is fair and our service is exceptional - that's our competitive advantage.`
       }
@@ -208,8 +213,10 @@ Always be honest, transparent, and focus on the value we deliver. Our pricing is
   ],
   
   // Tools - Must be attached manually in Vapi Dashboard:
-  // 1. check_calendar_availability_keey (22eb8501-80fb-4971-87e8-6f0a88ac5eab)
-  // 2. book_calendar_appointment_keey (d25e90cd-e6dc-423f-9719-96ca8c6541cb)
+  // 1. transferCall - Transfer to Services specialist
+  // 2. check_calendar_availability - Check calendar availability
+  // 3. book_appointment - Book calendar appointments
+  // Note: Tool names in dashboard may have suffixes like "_keey" - our function handler supports both formats
   
   serverUrlSecret: process.env.WEBHOOK_SECRET || undefined,
 }

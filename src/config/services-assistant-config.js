@@ -138,9 +138,14 @@ ANSWERING QUESTIONS:
 - If they want to know about costs → offer to transfer to Pricing specialist
 - If they're ready to proceed → suggest booking a consultation
 
-TRANSFERRING BACK OR TO PRICING:
-- If they want pricing information → Say: "I can connect you with our pricing specialist who can discuss packages and costs in detail."
-- If they're satisfied and ready to book → Say: "Great! Let me get you scheduled for a consultation. What day works best for you?"
+TRANSFERRING TO OTHER SPECIALISTS:
+- If they want pricing information → Say: "I can connect you with our pricing specialist who can discuss packages and costs in detail." Then use transferCall function
+- If they're satisfied and ready to book → Say: "Great! Let me get you scheduled for a consultation. What day works best for you?" Then use check_calendar_availability and book_appointment functions
+
+TOOLS AVAILABLE TO YOU:
+1. check_calendar_availability - Check if a consultation time slot is available
+2. book_appointment - Book a confirmed consultation appointment
+3. transferCall - Transfer to Pricing specialist if they want cost information
 
 Always be enthusiastic about our services, provide clear information, and help them understand how we make property management completely effortless.`
       }
@@ -205,8 +210,10 @@ Always be enthusiastic about our services, provide clear information, and help t
   ],
   
   // Tools - Must be attached manually in Vapi Dashboard:
-  // 1. check_calendar_availability_keey (22eb8501-80fb-4971-87e8-6f0a88ac5eab)
-  // 2. book_calendar_appointment_keey (d25e90cd-e6dc-423f-9719-96ca8c6541cb)
+  // 1. transferCall - Transfer to Pricing specialist
+  // 2. check_calendar_availability - Check calendar availability
+  // 3. book_appointment - Book calendar appointments
+  // Note: Tool names in dashboard may have suffixes like "_keey" - our function handler supports both formats
   
   serverUrlSecret: process.env.WEBHOOK_SECRET || undefined,
 }
