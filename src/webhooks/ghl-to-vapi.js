@@ -90,7 +90,8 @@ class GHLToVapiWebhook {
             name: `${firstName} ${lastName}`.trim()
           },
           assistantOverrides: {
-            variableValues: callMetadata // greeting is now part of variableValues
+            variableValues: callMetadata, // All contact data available to AI
+            firstMessage: `Hi ${firstName}, this is Keey calling about your property inquiry. Do you have a moment to chat?` // Explicit personalized greeting
           }
         }
 
@@ -170,7 +171,8 @@ class GHLToVapiWebhook {
             name: `${firstName || "Test"} ${lastName || "User"}`.trim()
           },
           assistantOverrides: {
-            variableValues: callMetadata // greeting is now part of variableValues
+            variableValues: callMetadata, // All contact data available to AI
+            firstMessage: `Hi ${firstName || "Test"}, this is Keey calling. This is a test call to verify our voice assistant is working correctly. Can you hear me?` // Explicit personalized greeting
           }
         }
 

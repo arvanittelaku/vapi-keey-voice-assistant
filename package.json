@@ -18,6 +18,7 @@
     "test-ghl-contact": "node scripts/test-ghl-contact.js",
     "test-ghl-appointment": "node scripts/test-ghl-appointment.js",
     "test-ghl-slots": "node scripts/test-ghl-slots.js",
+    "verify-appointment": "node scripts/verify-appointment.js",
     "create-tools": "node scripts/create-vapi-tools.js",
     "view-logs": "node scripts/view-call-logs.js",
     "check-call": "node scripts/check-call-status.js",
