@@ -4,27 +4,40 @@ Comprehensive AI voice assistant system for Keey Airbnb Property Management, pow
 
 ## Overview
 
-This system consists of three specialized AI voice assistants:
+This system consists of **TWO separate architectures** for different call types:
 
-1. **Main Assistant** - Company information, lead qualification, appointment booking
+### 🔵 INBOUND CALLS (Single Assistant)
+**Purpose**: Lead qualification from website inquiries
+
+1. **Inbound Lead Qualification Assistant** - Dedicated to capturing leads, qualifying them, and booking consultations
+
+### 🟢 OUTBOUND CALLS (Squad of 3 Assistants)
+**Purpose**: Educational/sales calls triggered from GHL workflow
+
+1. **Main Assistant** - Company information, benefits, processes, routing
 2. **Services Sub-Agent** - Detailed information about all Keey services
 3. **Pricing Sub-Agent** - Transparent pricing information and ROI calculations
 
+> **Important**: These are completely separate systems. Inbound uses a single assistant, while outbound uses a squad of specialists.
+
 ## Features
 
-### Inbound Call Handling
+### 🔵 Inbound Call Handling (Single Assistant)
 - ✅ Lead qualification and information collection
+- ✅ Natural conversational data capture (9 form fields)
+- ✅ Contact creation in GHL via Contact Create tool
 - ✅ Calendar availability checking
-- ✅ Appointment booking directly in GHL
-- ✅ Contact creation/update in CRM
+- ✅ Consultation appointment booking
+- ✅ Professional objection handling
 - ✅ Regional handling (London & Dubai)
-- ✅ Seamless agent transfers
 
-### Outbound Call Handling
+### 🟢 Outbound Call Handling (Squad)
 - ✅ Educational calls about Keey services
-- ✅ Follow-up calls to warm leads
+- ✅ Seamless transfers between specialists (same voice)
 - ✅ Service and pricing information delivery
-- ✅ Consultation booking
+- ✅ Consultation booking with GHL tools
+- ✅ Personalized greetings with contact data
+- ✅ Automated triggering from GHL workflow
 
 ### CRM Integration
 - ✅ GoHighLevel contact management
@@ -39,20 +52,24 @@ This system consists of three specialized AI voice assistants:
 keey-voice-assistant/
 ├── src/
 │   ├── config/
-│   │   ├── main-assistant-config.js      # Main assistant configuration
-│   │   ├── services-assistant-config.js  # Services sub-agent config
-│   │   └── pricing-assistant-config.js   # Pricing sub-agent config
+│   │   ├── inbound-assistant-config.js   # 🔵 Inbound lead qualification assistant
+│   │   ├── main-assistant-config.js      # 🟢 Outbound main assistant
+│   │   ├── services-assistant-config.js  # 🟢 Outbound services sub-agent
+│   │   └── pricing-assistant-config.js   # 🟢 Outbound pricing sub-agent
 │   ├── services/
 │   │   ├── vapi-client.js               # Vapi API client
 │   │   └── ghl-client.js                # GoHighLevel API client
 │   ├── webhooks/
-│   │   └── vapi-webhook.js              # Webhook handler for function calls
+│   │   ├── ghl-to-vapi.js               # GHL webhook for outbound calls
+│   │   ├── vapi-function-handler.js     # Function call handler
+│   │   └── vapi-webhook.js              # Vapi webhook handler
 │   └── index.js                         # Express server entry point
 ├── scripts/
-│   ├── deploy-main-assistant.js         # Deploy main assistant
-│   ├── deploy-services-assistant.js     # Deploy services sub-agent
-│   ├── deploy-pricing-assistant.js      # Deploy pricing sub-agent
-│   ├── create-vapi-tools.js             # Create Vapi function tools
+│   ├── deploy-inbound-assistant.js      # 🔵 Deploy inbound assistant
+│   ├── deploy-main-assistant.js         # 🟢 Deploy main assistant
+│   ├── deploy-services-assistant.js     # 🟢 Deploy services sub-agent
+│   ├── deploy-pricing-assistant.js      # 🟢 Deploy pricing sub-agent
+│   ├── deploy-squad.js                  # 🟢 Deploy complete outbound squad
 │   ├── test-webhook.js                  # Test webhook endpoints
 │   └── test-ghl.js                      # Test GHL integration
 ├── knowledge-base/
@@ -61,6 +78,8 @@ keey-voice-assistant/
 │   ├── Pricing_Details.txt              # Pricing structure and packages
 │   ├── FAQ.txt                          # Frequently asked questions
 │   └── Regional_Information.txt         # London & Dubai market info
+├── INBOUND_SETUP_GUIDE.md               # 🔵 Complete inbound setup guide
+├── SQUAD_DEPLOYMENT_GUIDE.md            # 🟢 Complete outbound setup guide
 ├── .env.example                         # Environment variables template
 ├── package.json                         # Node.js dependencies
 └── README.md                            # This file
@@ -96,7 +115,19 @@ Edit `.env` with your credentials:
 ```env
 # Vapi Configuration
 VAPI_API_KEY=your_vapi_api_key
-VAPI_PHONE_NUMBER_ID=your_phone_number_id
+
+# Phone Numbers (separate for inbound and outbound)
+VAPI_INBOUND_PHONE_NUMBER_ID=your_inbound_phone_number_id
+VAPI_OUTBOUND_PHONE_NUMBER_ID=your_outbound_phone_number_id
+
+# Inbound Assistant (single assistant for lead qualification)
+VAPI_INBOUND_ASSISTANT_ID=
+
+# Outbound Squad (main + pricing + services assistants)
+VAPI_SQUAD_ID=
+VAPI_MAIN_ASSISTANT_ID=
+VAPI_SERVICES_ASSISTANT_ID=
+VAPI_PRICING_ASSISTANT_ID=
 
 # GoHighLevel Configuration
 GHL_API_KEY=your_ghl_api_key
@@ -114,9 +145,29 @@ PORT=3000
 
 ### 4. Deploy Assistants
 
+#### 🔵 For INBOUND Calls (Lead Qualification)
+
 ```bash
-# Deploy all assistants at once
-npm run deploy-all
+# Deploy the inbound assistant
+npm run deploy-inbound
+```
+
+After deployment:
+1. Copy the assistant ID to `.env` as `VAPI_INBOUND_ASSISTANT_ID`
+2. Go to Vapi Dashboard → Assistants → Keey Inbound Lead Assistant → Tools
+3. Attach these 3 GHL tools:
+   - Contact Create (GHL)
+   - Calendar Check Availability (GHL)
+   - Calendar Create Event (GHL)
+4. Assign your **inbound phone number** to this assistant
+
+**Detailed Guide**: See [INBOUND_SETUP_GUIDE.md](./INBOUND_SETUP_GUIDE.md)
+
+#### 🟢 For OUTBOUND Calls (Educational/Sales)
+
+```bash
+# Deploy the complete outbound squad
+npm run deploy-squad
 
 # Or deploy individually
 npm run deploy-main
@@ -124,22 +175,14 @@ npm run deploy-services
 npm run deploy-pricing
 ```
 
-After deployment, copy the assistant IDs from the console output and add them to your `.env` file.
+After deployment:
+1. Copy the assistant IDs and squad ID to your `.env` file
+2. Attach GHL tools to each assistant in Vapi Dashboard
+3. Configure GHL workflow to trigger outbound calls via webhook
 
-### 5. Create Vapi Function Tools
+**Detailed Guide**: See [SQUAD_DEPLOYMENT_GUIDE.md](./SQUAD_DEPLOYMENT_GUIDE.md)
 
-```bash
-npm run create-tools
-```
-
-This creates the necessary function tools in Vapi:
-- `create_contact` - Save lead information to GHL
-- `check_calendar_availability` - Check GHL calendar availability
-- `book_appointment` - Book appointments in GHL
-- `transfer_to_services` - Transfer to services specialist
-- `transfer_to_pricing` - Transfer to pricing specialist
-
-### 6. Start the Webhook Server
+### 5. Start the Webhook Server
 
 ```bash
 # Production
@@ -148,6 +191,10 @@ npm start
 # Development (with auto-reload)
 npm run dev
 ```
+
+The webhook server handles:
+- 🟢 GHL workflow triggers for outbound calls (`/webhook/ghl-trigger-call`)
+- Function calls and callbacks from Vapi (`/webhook/vapi`)
 
 The server will start on the port specified in `.env` (default: 3000).
 

@@ -60,6 +60,7 @@ class VapiFunctionHandler {
               break
 
             case "create_contact":
+            case "contact_create_keey":
             case "capture_qualification_data":
               result = await this.createContact(parameters)
               break

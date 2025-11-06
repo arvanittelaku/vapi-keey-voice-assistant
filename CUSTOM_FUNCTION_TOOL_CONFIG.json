@@ -1,0 +1,62 @@
+{
+  "async": false,
+  "messages": [
+    {
+      "type": "request-start",
+      "content": ""
+    }
+  ],
+  "type": "function",
+  "function": {
+    "name": "contact_create_keey",
+    "description": "Creates a new contact in GoHighLevel CRM with lead qualification information collected during the call. Use this after collecting the caller's name, email, phone, property address, city, postcode, and number of bedrooms.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "firstName": {
+          "type": "string",
+          "description": "Contact's first name"
+        },
+        "lastName": {
+          "type": "string",
+          "description": "Contact's last name"
+        },
+        "email": {
+          "type": "string",
+          "description": "Contact's email address"
+        },
+        "phone": {
+          "type": "string",
+          "description": "Contact's phone number"
+        },
+        "propertyAddress": {
+          "type": "string",
+          "description": "Property street address and number"
+        },
+        "city": {
+          "type": "string",
+          "description": "City where property is located"
+        },
+        "postcode": {
+          "type": "string",
+          "description": "Property postcode/ZIP code"
+        },
+        "bedrooms": {
+          "type": "string",
+          "description": "Number of bedrooms in the property"
+        },
+        "region": {
+          "type": "string",
+          "description": "Region - either London or Dubai",
+          "enum": ["London", "Dubai"]
+        }
+      },
+      "required": ["firstName", "lastName", "email", "phone"]
+    }
+  },
+  "server": {
+    "url": "https://your-domain.com/webhook/vapi",
+    "secret": "your_webhook_secret"
+  }
+}
+
