@@ -91,6 +91,9 @@ class VapiClient {
   // Make a call
   async makeCall(callData) {
     try {
+      console.log("🔍 VAPI CLIENT - Call data being sent to Vapi API:")
+      console.log(JSON.stringify(callData, null, 2))
+      
       const response = await axios.post(`${this.baseURL}/call`, callData, {
         headers: this.headers,
       })

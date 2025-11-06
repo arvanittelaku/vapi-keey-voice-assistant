@@ -105,6 +105,10 @@ class GHLToVapiWebhook {
           }
         }
 
+        console.log("🔍 DEBUG - Original phone:", phone)
+        console.log("🔍 DEBUG - Formatted phone:", formattedPhone)
+        console.log("🔍 DEBUG - Phone Number ID:", process.env.VAPI_PHONE_NUMBER_ID)
+        console.log("🔍 DEBUG - Squad ID:", process.env.VAPI_SQUAD_ID)
         console.log("📤 Call Data:", JSON.stringify(callData, null, 2))
 
         const call = await this.vapiClient.makeCall(callData)
@@ -196,6 +200,10 @@ class GHLToVapiWebhook {
         }
 
         console.log("📤 Initiating test call...")
+        console.log("🔍 DEBUG - Original phone:", phone)
+        console.log("🔍 DEBUG - Formatted phone:", formattedPhone)
+        console.log("🔍 DEBUG - Phone Number ID:", process.env.VAPI_PHONE_NUMBER_ID)
+        console.log("🔍 DEBUG - Squad ID:", process.env.VAPI_SQUAD_ID)
         const call = await this.vapiClient.makeCall(callData)
 
         console.log("✅ Test call initiated!")
