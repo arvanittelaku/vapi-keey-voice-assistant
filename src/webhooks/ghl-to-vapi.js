@@ -82,11 +82,21 @@ class GHLToVapiWebhook {
         // Initiate Vapi call
         console.log("\n📞 Initiating Vapi outbound call...")
         
+        // Ensure phone number is in E.164 format
+        let formattedPhone = phone.replace(/\s/g, ''); // Remove spaces
+        
+        // If phone doesn't start with +, try to add country code
+        if (!formattedPhone.startsWith('+')) {
+          // Default to UK if not specified
+          const countryCode = region === 'Dubai' ? '+971' : '+44';
+          formattedPhone = countryCode + formattedPhone.replace(/^0+/, ''); // Remove leading zeros
+        }
+
         const callData = {
           phoneNumberId: process.env.VAPI_PHONE_NUMBER_ID,
           squadId: process.env.VAPI_SQUAD_ID, // Required for outbound calls
           customer: {
-            number: phone.replace(/\s/g, ''), // Remove any spaces from phone number
+            number: formattedPhone, // E.164 formatted phone number
             name: `${firstName} ${lastName}`.trim()
           },
           assistantOverrides: {
