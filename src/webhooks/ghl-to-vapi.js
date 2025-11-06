@@ -173,11 +173,20 @@ class GHLToVapiWebhook {
           greeting: `Hi ${firstName || "Test"}, this is Keey calling. This is a test call to verify our voice assistant is working correctly. Can you hear me?` // Personalized greeting
         }
 
+        // Ensure phone number is in E.164 format
+        let formattedPhone = phone.replace(/\s/g, ''); // Remove spaces
+        
+        // If phone doesn't start with +, try to add country code
+        if (!formattedPhone.startsWith('+')) {
+          // Default to UK for test calls
+          formattedPhone = '+44' + formattedPhone.replace(/^0+/, ''); // Remove leading zeros
+        }
+
         const callData = {
           phoneNumberId: process.env.VAPI_PHONE_NUMBER_ID,
           squadId: process.env.VAPI_SQUAD_ID, // Required for outbound calls
           customer: {
-            number: phone.replace(/\s/g, ''), // Remove any spaces
+            number: formattedPhone, // E.164 formatted phone number
             name: `${firstName || "Test"} ${lastName || "User"}`.trim()
           },
           assistantOverrides: {
