@@ -16,9 +16,50 @@ class GHLClient {
   // Create or update contact
   async createContact(contactData) {
     try {
+      // Map only valid GHL contact fields
+      // See: https://highlevel.stoplight.io/docs/integrations/9d6a2b2e6c37f-create-contact
+      const validFields = [
+        'firstName', 'lastName', 'name', 'email', 'phone',
+        'address1', 'city', 'state', 'postalCode', 'country',
+        'companyName', 'website', 'tags', 'source',
+        'dateOfBirth', 'customField'
+      ]
+      
+      // Build payload with only valid fields
       const payload = {
-        ...contactData,
         locationId: this.locationId
+      }
+      
+      // Copy over valid fields from contactData
+      for (const key of validFields) {
+        if (contactData[key] !== undefined && contactData[key] !== null) {
+          payload[key] = contactData[key]
+        }
+      }
+      
+      // Handle field mapping for common variations
+      // propertyAddress -> address1
+      if (contactData.propertyAddress && !payload.address1) {
+        payload.address1 = contactData.propertyAddress
+      }
+      
+      // postcode -> postalCode
+      if (contactData.postcode && !payload.postalCode) {
+        payload.postalCode = contactData.postcode
+      }
+      
+      // Add custom data as tags if provided
+      const customTags = []
+      if (contactData.bedrooms) {
+        customTags.push(`${contactData.bedrooms} bedrooms`)
+      }
+      if (contactData.region) {
+        customTags.push(contactData.region)
+      }
+      
+      // Merge with existing tags
+      if (customTags.length > 0) {
+        payload.tags = payload.tags ? [...payload.tags, ...customTags] : customTags
       }
       
       console.log("📝 Creating contact in GHL...")
@@ -37,7 +78,6 @@ class GHLClient {
       console.error("   Status:", error.response?.status)
       console.error("   Status Text:", error.response?.statusText)
       console.error("   Error Data:", JSON.stringify(error.response?.data, null, 2))
-      console.error("   Full Response:", error.response)
       throw error
     }
   }

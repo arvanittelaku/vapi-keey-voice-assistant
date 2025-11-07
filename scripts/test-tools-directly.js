@@ -66,25 +66,34 @@ async function runTests() {
     if (!process.env.GHL_CALENDAR_ID) {
       console.log('⚠️  TEST 2 SKIPPED: GHL_CALENDAR_ID not set');
     } else {
-      // Get tomorrow's date
+      // Get tomorrow at 2 PM
       const tomorrow = new Date();
       tomorrow.setDate(tomorrow.getDate() + 1);
-      const testDate = tomorrow.toISOString().split('T')[0]; // YYYY-MM-DD
-      const testTime = '14:00';
+      tomorrow.setHours(14, 0, 0, 0);
+      
+      // Get start and end of day for availability check
+      const startOfDay = new Date(tomorrow);
+      startOfDay.setHours(0, 0, 0, 0);
+      const endOfDay = new Date(tomorrow);
+      endOfDay.setHours(23, 59, 59, 999);
 
-      console.log(`📤 Checking availability for: ${testDate} at ${testTime}`);
+      console.log(`📤 Checking availability for: ${tomorrow.toISOString().split('T')[0]}`);
+      console.log(`   Time range: ${startOfDay.toISOString()} to ${endOfDay.toISOString()}`);
 
       try {
-        const availabilityResult = await ghlClient.checkCalendarAvailability({
-          requestedDate: testDate,
-          requestedTime: testTime,
-          timezone: 'Europe/London'
-        });
+        const availabilityResult = await ghlClient.checkCalendarAvailability(
+          process.env.GHL_CALENDAR_ID,
+          startOfDay.toISOString(),
+          endOfDay.toISOString(),
+          'Europe/London'
+        );
 
-        if (availabilityResult.available !== undefined) {
+        if (availabilityResult.slots !== undefined) {
           console.log('✅ TEST 2 PASSED: Calendar check successful!');
-          console.log(`   Available: ${availabilityResult.available}`);
-          console.log(`   Message: ${availabilityResult.message}`);
+          console.log(`   Slots found: ${availabilityResult.slots.length}`);
+          if (availabilityResult.slots.length > 0) {
+            console.log(`   First 3 slots:`, availabilityResult.slots.slice(0, 3));
+          }
         } else {
           console.log('❌ TEST 2 FAILED: Invalid response from calendar check');
           console.log(`   Response:`, availabilityResult);
