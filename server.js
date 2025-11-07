@@ -1,6 +1,7 @@
 const express = require("express")
 const GHLToVapiWebhook = require("./src/webhooks/ghl-to-vapi")
 const VapiFunctionHandler = require("./src/webhooks/vapi-function-handler")
+const TwilioRouter = require("./src/webhooks/twilio-router")
 require("dotenv").config()
 
 console.log("🚀 Starting Keey Voice Assistant Server...")
@@ -27,6 +28,7 @@ app.get("/test-direct", (req, res) => {
 // Initialize webhook handlers - PASS THE APP TO THEM
 const ghlWebhook = new GHLToVapiWebhook(app)
 const vapiHandler = new VapiFunctionHandler(app)
+const twilioRouter = new TwilioRouter(app)
 
 // TEST: Register another route AFTER handlers to see order
 app.get("/test-after", (req, res) => {
@@ -43,6 +45,7 @@ app.use((req, res) => {
 app.listen(port, () => {
   console.log(`\n✅ Keey Voice Assistant Server running on port ${port}`)
   console.log(`\n📡 Webhook Endpoints:`)
+  console.log(`   Twilio Voice: http://localhost:${port}/twilio/voice`)
   console.log(`   GHL Trigger: http://localhost:${port}/webhook/ghl-trigger-call`)
   console.log(`   Vapi Functions: http://localhost:${port}/webhook/vapi`)
   console.log(`   Test Endpoint: http://localhost:${port}/test/trigger-call`)
