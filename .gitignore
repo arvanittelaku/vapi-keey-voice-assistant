@@ -50,3 +50,6 @@ temp/
 .vercel
 .netlify
 
+# Documentation (exclude from deployment)
+*.md
+

@@ -26,7 +26,8 @@
     "view-logs": "node scripts/view-call-logs.js",
     "check-call": "node scripts/check-call-status.js",
     "verify-squad": "node scripts/verify-squad.js",
-    "add-tools": "node scripts/add-tools-to-assistants.js"
+    "add-tools": "node scripts/add-tools-to-assistants.js",
+    "test-assistant-tools": "node scripts/test-assistant-tool-calls.js"
   },
   "keywords": [
     "vapi",

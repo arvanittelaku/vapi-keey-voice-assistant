@@ -1,0 +1,32 @@
+{
+  "type": "function",
+  "function": {
+    "name": "check_calendar_availability",
+    "description": "Checks if a specific date and time slot is available for a consultation appointment in the calendar. Always use this function BEFORE booking an appointment to verify availability. The function will tell you if the requested time is available or not.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "requestedDate": {
+          "type": "string",
+          "description": "The date for the appointment in YYYY-MM-DD format, e.g., '2025-11-10' or natural format like 'November 10, 2025'"
+        },
+        "requestedTime": {
+          "type": "string",
+          "description": "The time for the appointment in 24-hour format like '14:00' or 12-hour format like '2:00 PM'"
+        },
+        "timezone": {
+          "type": "string",
+          "description": "Timezone for the appointment. Default is 'Europe/London'. Use 'Asia/Dubai' for Dubai appointments.",
+          "default": "Europe/London"
+        }
+      },
+      "required": ["requestedDate", "requestedTime"]
+    }
+  },
+  "async": false,
+  "server": {
+    "url": "https://vapi-keey-voice-assistant-production.up.railway.app/webhook/vapi",
+    "secret": "d8cde4628cf511b5cf14c7c106154e226ee7721ba5235319faeac5c2562988aa"
+  }
+}
+

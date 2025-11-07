@@ -1,0 +1,56 @@
+{
+  "type": "function",
+  "function": {
+    "name": "create_contact",
+    "description": "Creates a new contact in GoHighLevel CRM with lead qualification information. Use this after collecting the caller's name, email, phone, property address, city, postcode, and number of bedrooms. Always call this function once you have collected all the essential contact information.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "firstName": {
+          "type": "string",
+          "description": "Contact's first name (required)"
+        },
+        "lastName": {
+          "type": "string",
+          "description": "Contact's last name (required)"
+        },
+        "email": {
+          "type": "string",
+          "description": "Contact's email address (required)"
+        },
+        "phone": {
+          "type": "string",
+          "description": "Contact's phone number in international format, e.g., +447700900000 (required)"
+        },
+        "propertyAddress": {
+          "type": "string",
+          "description": "Property street address and number (optional)"
+        },
+        "city": {
+          "type": "string",
+          "description": "City where the property is located (optional)"
+        },
+        "postcode": {
+          "type": "string",
+          "description": "Property postcode or ZIP code (optional)"
+        },
+        "bedrooms": {
+          "type": "string",
+          "description": "Number of bedrooms in the property, e.g., '2' or '3' (optional)"
+        },
+        "region": {
+          "type": "string",
+          "description": "Region where the property is located - must be either 'London' or 'Dubai'",
+          "enum": ["London", "Dubai"]
+        }
+      },
+      "required": ["firstName", "lastName", "email", "phone"]
+    }
+  },
+  "async": false,
+  "server": {
+    "url": "https://vapi-keey-voice-assistant-production.up.railway.app/webhook/vapi",
+    "secret": "d8cde4628cf511b5cf14c7c106154e226ee7721ba5235319faeac5c2562988aa"
+  }
+}
+
