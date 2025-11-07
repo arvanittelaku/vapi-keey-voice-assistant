@@ -27,7 +27,10 @@
     "check-call": "node scripts/check-call-status.js",
     "verify-squad": "node scripts/verify-squad.js",
     "add-tools": "node scripts/add-tools-to-assistants.js",
-    "test-assistant-tools": "node scripts/test-assistant-tool-calls.js"
+    "test-assistant-tools": "node scripts/test-assistant-tool-calls.js",
+    "test-render": "node scripts/test-render-deployment.js",
+    "test-tool-webhook": "node scripts/test-tool-webhook.js",
+    "test-tools": "node scripts/test-tools-directly.js"
   },
   "keywords": [
     "vapi",

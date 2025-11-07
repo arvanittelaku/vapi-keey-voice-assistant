@@ -164,14 +164,14 @@ class VapiFunctionHandler {
       }
 
       // Actually check GHL calendar
-      // Check for a 1-hour consultation slot
-      const startTime = dt.toISO()
-      const endTime = dt.plus({ hours: 1 }).toISO()
+      // Check the full day for available slots
+      const startOfDay = dt.startOf('day').toISO()
+      const endOfDay = dt.endOf('day').toISO()
       
       const availability = await this.ghlClient.checkCalendarAvailability(
         calendarId,
-        startTime,
-        endTime,
+        startOfDay,
+        endOfDay,
         tz
       )
 
@@ -363,20 +363,26 @@ class VapiFunctionHandler {
         console.warn("Could not parse phone number:", phone)
       }
 
-      // Create/update contact in GHL
-      // Note: Custom fields should be added separately after contact creation
-      // or configured in GHL to accept them in the contact creation payload
-      const contact = await this.ghlClient.createContact({
+      // Create/update contact in GHL using only supported fields
+      const contactPayload = {
         firstName,
         lastName,
         email,
         phone: normalizedPhone,
-        address1: propertyAddress,
-        city,
-        postalCode: postcode,
-        // Store bedrooms and region in tags or notes for now
-        tags: [region, bedrooms ? `${bedrooms} bedrooms` : null].filter(Boolean)
-      })
+        source: "Voice Assistant - Lead Qualification"
+      }
+
+      // Add address fields only if provided (using standard GHL field names)
+      if (propertyAddress) contactPayload.address1 = propertyAddress
+      if (city) contactPayload.city = city  
+      if (postcode) contactPayload.postalCode = postcode
+      
+      // Store bedrooms and region in tags
+      if (region || bedrooms) {
+        contactPayload.tags = [region, bedrooms ? `${bedrooms} bedrooms` : null].filter(Boolean)
+      }
+
+      const contact = await this.ghlClient.createContact(contactPayload)
 
       console.log(`✅ Contact created: ${contact.id || contact.contact?.id}`)
 
