@@ -162,12 +162,9 @@ update_appointment_confirmation(contactId: "123", appointmentId: "456", status: 
     "conversation-update"
   ],
   
-  // Tools available to the assistant
-  toolIds: [
-    // This tool will be added in Vapi Dashboard
-    // Tool name: update_appointment_confirmation
-    // Purpose: Track whether customer confirmed/cancelled appointment
-  ],
+  // NOTE: Tools must be added manually in Vapi Dashboard
+  // Required tool: update_appointment_confirmation
+  // Purpose: Track whether customer confirmed/cancelled appointment
   
   serverUrlSecret: process.env.WEBHOOK_SECRET || undefined,
 }

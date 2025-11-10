@@ -318,17 +318,18 @@ class VapiFunctionHandler {
       console.log(`   Appointment ID: ${appointmentId}`);
       console.log(`   Status: ${status}`);
 
-      // Update contact with confirmation status
-      const updateData = {
-        customField: {
-          appointment_confirmation_status: status,
-          appointment_confirmation_time: new Date().toISOString(),
-        },
-      };
-
+      // Update contact with confirmation status using tags
+      const confirmationTag = `Confirmation: ${status}`;
+      const timestampTag = `Confirmed at: ${new Date().toLocaleString('en-GB', { timeZone: 'Europe/London' })}`;
+      
+      const tags = [confirmationTag, timestampTag];
       if (notes) {
-        updateData.customField.appointment_confirmation_notes = notes;
+        tags.push(`Note: ${notes.substring(0, 50)}`); // Limit note length for tag
       }
+
+      const updateData = {
+        tags: tags,
+      };
 
       // Update contact in GHL
       await this.ghlClient.updateContact(contactId, updateData);
