@@ -47,6 +47,15 @@ class GHLToVapiWebhook {
         const email = contactData.email || ""
         const contactId = contactData.id || contactData.contactId || ""
 
+        // Detect call type: confirmation vs lead qualification
+        const callType = contactData.callType || contactData.call_type || "lead_qualification"
+        const isConfirmationCall = callType === "confirmation" || callType === "appointment_confirmation"
+
+        // Extract appointment details (for confirmation calls)
+        const appointmentTime = contactData.appointmentTime || contactData.appointment_time || ""
+        const appointmentDate = contactData.appointmentDate || contactData.appointment_date || ""
+        const appointmentId = contactData.appointmentId || contactData.appointment_id || ""
+
         // Optional fields
         const propertyAddress = contactData.address1 || contactData.propertyAddress || ""
         const city = contactData.city || ""
@@ -60,6 +69,12 @@ class GHLToVapiWebhook {
         console.log(`   Email: ${email}`)
         console.log(`   Contact ID: ${contactId}`)
         console.log(`   Region: ${region}`)
+        console.log(`   Call Type: ${callType}`)
+        if (isConfirmationCall) {
+          console.log(`   ⏰ Appointment Time: ${appointmentTime}`)
+          console.log(`   📅 Appointment Date: ${appointmentDate}`)
+          console.log(`   🆔 Appointment ID: ${appointmentId}`)
+        }
 
         // Prepare metadata for the call
         const callMetadata = {
@@ -74,9 +89,18 @@ class GHLToVapiWebhook {
           bedrooms: bedrooms,
           region: region,
           callSource: "GHL Workflow",
-          callType: "outbound",
-          triggeredAt: new Date().toISOString(),
-          greeting: `Hi ${firstName}, this is Keey calling about your property inquiry. Do you have a moment to chat?` // Personalized greeting
+          callType: callType,
+          triggeredAt: new Date().toISOString()
+        }
+
+        // Add appointment details if it's a confirmation call
+        if (isConfirmationCall) {
+          callMetadata.appointmentTime = appointmentTime
+          callMetadata.appointmentDate = appointmentDate
+          callMetadata.appointmentId = appointmentId
+          callMetadata.greeting = `Hi ${firstName}, this is Keey calling to confirm your appointment.`
+        } else {
+          callMetadata.greeting = `Hi ${firstName}, this is Keey calling about your property inquiry. Do you have a moment to chat?`
         }
 
         // Initiate Vapi call
@@ -92,23 +116,32 @@ class GHLToVapiWebhook {
           formattedPhone = countryCode + formattedPhone.replace(/^0+/, ''); // Remove leading zeros
         }
 
+        // Build call data based on call type
         const callData = {
           phoneNumberId: process.env.VAPI_PHONE_NUMBER_ID,
-          squadId: process.env.VAPI_SQUAD_ID, // Required for outbound calls
           customer: {
             number: formattedPhone, // E.164 formatted phone number
             name: `${firstName} ${lastName}`.trim()
           },
           assistantOverrides: {
             variableValues: callMetadata, // All contact data available to AI
-            firstMessage: `Hi ${firstName}, this is Keey calling about your property inquiry. Do you have a moment to chat?` // Explicit personalized greeting
+            firstMessage: callMetadata.greeting // Explicit personalized greeting
           }
+        }
+
+        // Use appropriate assistant/squad based on call type
+        if (isConfirmationCall) {
+          console.log("📋 Confirmation call detected - Using Confirmation Assistant")
+          callData.assistantId = process.env.VAPI_CONFIRMATION_ASSISTANT_ID
+        } else {
+          console.log("📋 Lead qualification call - Using Squad")
+          callData.squadId = process.env.VAPI_SQUAD_ID
         }
 
         console.log("🔍 DEBUG - Original phone:", phone)
         console.log("🔍 DEBUG - Formatted phone:", formattedPhone)
         console.log("🔍 DEBUG - Phone Number ID:", process.env.VAPI_PHONE_NUMBER_ID)
-        console.log("🔍 DEBUG - Squad ID:", process.env.VAPI_SQUAD_ID)
+        console.log("🔍 DEBUG - Assistant/Squad ID:", isConfirmationCall ? process.env.VAPI_CONFIRMATION_ASSISTANT_ID : process.env.VAPI_SQUAD_ID)
         console.log("📤 Call Data:", JSON.stringify(callData, null, 2))
 
         const call = await this.vapiClient.makeCall(callData)
@@ -120,9 +153,10 @@ class GHLToVapiWebhook {
         // Respond to GHL webhook
         res.json({
           success: true,
-          message: "Call initiated successfully",
+          message: isConfirmationCall ? "Confirmation call initiated successfully" : "Call initiated successfully",
           callId: call.id,
           status: call.status,
+          callType: callType,
           customer: {
             name: `${firstName} ${lastName}`.trim(),
             phone: phone

@@ -11,14 +11,14 @@ const mockVapiToolCall = {
     functionCall: {
       name: 'create_contact',
       parameters: {
-        firstName: 'John',
-        lastName: 'Doe',
-        email: 'john.doe@example.com',
-        phone: '+447700900123',
-        propertyAddress: '123 Test Street',
+        firstName: 'Jane',
+        lastName: 'Smith',
+        email: `test.${Date.now()}@example.com`, // Unique email each time
+        phone: `+4477009${String(Date.now()).slice(-5)}`, // Unique phone each time
+        propertyAddress: '456 New Street',
         city: 'London',
-        postcode: 'SW1A 1AA',
-        bedrooms: '2',
+        postcode: 'SW1A 2BB',
+        bedrooms: '3',
         region: 'London'
       }
     }

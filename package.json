@@ -13,6 +13,7 @@
     "deploy-services": "node scripts/deploy-services-assistant.js",
     "deploy-pricing": "node scripts/deploy-pricing-assistant.js",
     "deploy-inbound": "node scripts/deploy-inbound-assistant.js",
+    "deploy-confirmation": "node scripts/deploy-confirmation-assistant.js",
     "deploy-all": "npm run deploy-main && npm run deploy-services && npm run deploy-pricing",
     "deploy-all-assistants": "npm run deploy-main && npm run deploy-services && npm run deploy-pricing && npm run deploy-inbound",
     "test-webhook": "node scripts/test-webhook.js",
@@ -30,7 +31,10 @@
     "test-assistant-tools": "node scripts/test-assistant-tool-calls.js",
     "test-render": "node scripts/test-render-deployment.js",
     "test-tool-webhook": "node scripts/test-tool-webhook.js",
-    "test-tools": "node scripts/test-tools-directly.js"
+    "test-tools": "node scripts/test-tools-directly.js",
+    "test-make": "node scripts/test-make-webhook.js",
+    "test-make-business": "node scripts/test-make-business-hours.js",
+    "test-confirmation": "node scripts/test-confirmation-call.js"
   },
   "keywords": [
     "vapi",
