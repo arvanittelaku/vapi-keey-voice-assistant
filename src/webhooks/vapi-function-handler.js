@@ -318,12 +318,13 @@ class VapiFunctionHandler {
       console.log(`   Appointment ID: ${appointmentId}`);
       console.log(`   Status: ${status}`);
 
-      // Update contact with confirmation status using custom field
+      // Update contact with confirmation status using custom field ID
+      // Custom Field: "Confirmation" (ID: YLvP62hGzQMhfl2YMxTj)
       const updateData = {
-        customField: {
-          confirmation: status
-        }
+        "YLvP62hGzQMhfl2YMxTj": status
       };
+
+      console.log(`   Update Data:`, JSON.stringify(updateData, null, 2));
 
       // Update contact in GHL
       await this.ghlClient.updateContact(contactId, updateData);

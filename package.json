@@ -34,7 +34,8 @@
     "test-tools": "node scripts/test-tools-directly.js",
     "test-make": "node scripts/test-make-webhook.js",
     "test-make-business": "node scripts/test-make-business-hours.js",
-    "test-confirmation": "node scripts/test-confirmation-call.js"
+    "test-confirmation": "node scripts/test-confirmation-call.js",
+    "get-custom-field": "node scripts/get-custom-field-id.js"
   },
   "keywords": [
     "vapi",
