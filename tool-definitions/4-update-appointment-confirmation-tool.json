@@ -1,0 +1,38 @@
+{
+  "async": false,
+  "messages": [],
+  "type": "function",
+  "function": {
+    "name": "update_appointment_confirmation",
+    "description": "Updates the appointment confirmation status after speaking with the customer. Call this after the customer responds whether they can attend the appointment or not.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "contactId": {
+          "type": "string",
+          "description": "The GoHighLevel contact ID (provided in the call metadata)"
+        },
+        "appointmentId": {
+          "type": "string",
+          "description": "The appointment ID (provided in the call metadata)"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["confirmed", "cancelled", "reschedule", "no_answer"],
+          "description": "The confirmation status: 'confirmed' if customer confirms they can attend, 'cancelled' if they cannot attend, 'reschedule' if they want a different time, 'no_answer' if customer didn't give a clear response"
+        },
+        "notes": {
+          "type": "string",
+          "description": "Optional notes about the conversation or customer's specific requests (e.g., 'Customer asked to be called back in 30 minutes', 'Customer needs to confirm with spouse first')"
+        }
+      },
+      "required": ["contactId", "appointmentId", "status"]
+    }
+  },
+  "server": {
+    "url": "https://vapi-keey-voice-assistant.onrender.com/webhook/vapi",
+    "timeoutSeconds": 20,
+    "secret": "your-webhook-secret-here"
+  }
+}
+

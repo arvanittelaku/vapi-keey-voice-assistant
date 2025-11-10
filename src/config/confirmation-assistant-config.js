@@ -87,7 +87,19 @@ REMEMBER:
 IMPORTANT NOTES:
 - You will receive appointment details (customer name, appointment time) from the system
 - Use this information naturally in conversation
-- If you don't receive specific details, ask: "Can you confirm which appointment you have with us today?"`
+- If you don't receive specific details, ask: "Can you confirm which appointment you have with us today?"
+
+CRITICAL: After getting the customer's response, you MUST call the update_appointment_confirmation tool:
+- Status "confirmed" → Customer says yes, they can make it
+- Status "cancelled" → Customer says no, they cannot make it
+- Status "reschedule" → Customer wants a different time
+- Status "no_answer" → Customer was unclear or didn't respond
+
+Example tool call after "yes":
+update_appointment_confirmation(contactId: "123", appointmentId: "456", status: "confirmed")
+
+Example tool call after "no":
+update_appointment_confirmation(contactId: "123", appointmentId: "456", status: "cancelled", notes: "Customer has a conflict")`
       }
     ]
   },
@@ -150,9 +162,12 @@ IMPORTANT NOTES:
     "conversation-update"
   ],
   
-  // NO TOOLS NEEDED - This is a simple confirmation call
-  // If in the future you want to update appointment status in GHL, 
-  // you can add a tool here
+  // Tools available to the assistant
+  toolIds: [
+    // This tool will be added in Vapi Dashboard
+    // Tool name: update_appointment_confirmation
+    // Purpose: Track whether customer confirmed/cancelled appointment
+  ],
   
   serverUrlSecret: process.env.WEBHOOK_SECRET || undefined,
 }

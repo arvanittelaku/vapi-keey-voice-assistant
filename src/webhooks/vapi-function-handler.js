@@ -1,414 +1,383 @@
-const express = require("express")
-const GHLClient = require("../services/ghl-client")
-const { parsePhoneNumber } = require("libphonenumber-js")
-const { DateTime } = require("luxon")
+const GHLClient = require("../services/ghl-client");
+const { parsePhoneNumber } = require("libphonenumber-js");
+const { DateTime } = require("luxon");
 
 class VapiFunctionHandler {
   constructor(app) {
-    this.app = app
-    this.ghlClient = new GHLClient()
-    this.setupRoutes()
+    this.app = app;
+    this.ghlClient = new GHLClient();
+    this.setupRoutes();
   }
 
   setupRoutes() {
-    console.log("📝 VapiFunctionHandler: Registering /webhook/vapi route...")
-    console.log("📝 this.app exists?", !!this.app)
-    console.log("📝 this.app type:", typeof this.app)
-    
-    if (!this.app) {
-      console.error("❌ ERROR: this.app is undefined in VapiFunctionHandler!")
-      return
-    }
-    
-    // TEST ROUTE - Verify handler is working
-    this.app.get("/webhook/vapi", (req, res) => {
-      console.log("✅ GET /webhook/vapi hit!")
-      res.json({ 
-        status: "VapiFunctionHandler is working!",
-        message: "Use POST to this endpoint for function calls"
-      })
-    })
-    
-    // Vapi Function Call Webhook
+    console.log("📝 VapiFunctionHandler: Registering Vapi function webhook...");
+
     this.app.post("/webhook/vapi", async (req, res) => {
       try {
-        console.log("\n🔔 VAPI FUNCTION CALL RECEIVED")
-        console.log("📦 Payload:", JSON.stringify(req.body, null, 2))
+        console.log("\n🔔 VAPI FUNCTION CALL RECEIVED");
+        console.log("📦 Payload:", JSON.stringify(req.body, null, 2));
 
-        const { message } = req.body
+        const { message, call } = req.body;
 
-        // Handle different message types
-        if (message?.type === "function-call") {
-          const { functionCall } = message
-          const { id, name, parameters } = functionCall
-
-          console.log(`🛠️  Function Called: ${name}`)
-          console.log(`📋 Parameters:`, parameters)
-
-          // Route to appropriate function handler
-          let result
-          switch (name) {
-            case "check_calendar_availability":
-            case "check_calendar_availability_keey":
-              result = await this.checkCalendarAvailability(parameters)
-              break
-
-            case "book_calendar_appointment":
-            case "book_calendar_appointment_keey":
-            case "book_appointment":
-              result = await this.bookCalendarAppointment(parameters)
-              break
-
-            case "create_contact":
-            case "contact_create_keey":
-            case "capture_qualification_data":
-              result = await this.createContact(parameters)
-              break
-
-            default:
-              result = {
-                success: false,
-                message: `Unknown function: ${name}`
-              }
-          }
-
-          console.log("✅ Function result:", result)
-          
-          // Return in Vapi's expected format
-          return res.json({
-            functionCall: {
-              id: id,
-              result: JSON.stringify(result)
-            }
-          })
+        if (!message || message.type !== "function-call") {
+          console.log("⚠️  Not a function call, ignoring");
+          return res.json({ success: true, message: "Not a function call" });
         }
 
-        // Handle other message types
-        return res.json({ received: true })
+        const { functionCall } = message;
+        const { name: functionName, parameters } = functionCall;
 
+        console.log(`🛠️  Function Called: ${functionName}`);
+        console.log("📋 Parameters:", parameters);
+
+        let result;
+
+        switch (functionName) {
+          case "create_contact":
+            result = await this.createContact(parameters);
+            break;
+
+          case "check_calendar_availability_keey":
+            result = await this.checkCalendarAvailability(parameters);
+            break;
+
+          case "book_calendar_appointment_keey":
+            result = await this.bookCalendarAppointment(parameters);
+            break;
+
+          case "update_appointment_confirmation":
+            result = await this.updateAppointmentConfirmation(parameters);
+            break;
+
+          default:
+            console.error(`❌ Unknown function: ${functionName}`);
+            result = {
+              success: false,
+              message: `Unknown function: ${functionName}`,
+            };
+        }
+
+        console.log("✅ Function executed successfully");
+        console.log("📤 Result:", result);
+
+        res.json({
+          results: [
+            {
+              ...result,
+              toolCallId: message.toolCallId,
+            },
+          ],
+        });
       } catch (error) {
-        console.error("\n❌ ERROR in Vapi webhook:", error.message)
-        if (error.response) {
-          console.error("API Error:", JSON.stringify(error.response.data, null, 2))
-        }
+        console.error("\n❌ ERROR in function handler:", error.message);
+        console.error("Stack:", error.stack);
 
         res.status(500).json({
           success: false,
           error: error.message,
-          message: "I'm sorry, I encountered an error processing that request. Let me try again."
-        })
+          message: "An error occurred while processing the function call",
+        });
       }
-    })
+    });
+
+    console.log("✅ Vapi function webhook registered at /webhook/vapi");
   }
 
-  /**
-   * Check calendar availability
-   */
-  async checkCalendarAvailability(params) {
-    const { timezone, requestedDate, requestedTime, date, time } = params
-    
-    // Support both parameter formats
-    const dateStr = date || requestedDate
-    const timeStr = time || requestedTime
-    const tz = timezone || "Europe/London"
-
-    try {
-      console.log(`\n📅 Checking calendar availability...`)
-      console.log(`   Date: ${dateStr}`)
-      console.log(`   Time: ${timeStr}`)
-      console.log(`   Timezone: ${tz}`)
-
-      // Try to parse as ISO format first (2025-11-10 14:00)
-      let dt = DateTime.fromISO(`${dateStr}T${timeStr}`, { zone: tz })
-      
-      // If that fails, try natural language format
-      if (!dt.isValid) {
-        const dateTimeStr = `${dateStr} ${timeStr}`
-        dt = DateTime.fromFormat(dateTimeStr, "MMMM d, yyyy h:mm a", { zone: tz })
-      }
-
-      if (!dt.isValid) {
-        return {
-          success: false,
-          message: `I couldn't understand that date and time. Could you please tell me again in a clear format like "November 5th at 2 PM"?`
-        }
-      }
-
-      // Check if it's in the past
-      if (dt < DateTime.now()) {
-        return {
-          success: false,
-          available: false,
-          message: "That time has already passed. Could you suggest a future date and time?"
-        }
-      }
-
-      // Check GHL calendar availability
-      const calendarId = process.env.GHL_CALENDAR_ID
-      if (!calendarId) {
-        console.warn("⚠️  GHL_CALENDAR_ID not configured, simulating availability check")
-        // Simulate: available if it's business hours (9 AM - 5 PM, weekdays)
-        const hour = dt.hour
-        const isWeekday = dt.weekday >= 1 && dt.weekday <= 5
-        const isBusinessHours = hour >= 9 && hour < 17
-
-        const available = isWeekday && isBusinessHours
-
-        return {
-          success: true,
-          available: available,
-          message: available 
-            ? `Great news! ${requestedDate} at ${requestedTime} is available. Shall I book that for you?`
-            : `I'm sorry, that time isn't available. Our consultations are available Monday to Friday, 9 AM to 5 PM. Would you like to try a different time?`
-        }
-      }
-
-      // Actually check GHL calendar
-      // Check the full day for available slots
-      const startOfDay = dt.startOf('day').toISO()
-      const endOfDay = dt.endOf('day').toISO()
-      
-      const availability = await this.ghlClient.checkCalendarAvailability(
-        calendarId,
-        startOfDay,
-        endOfDay,
-        tz
-      )
-
-      // GHL API returns { slots: [...] }
-      const hasAvailableSlots = availability.slots && availability.slots.length > 0
-      
-      if (hasAvailableSlots) {
-        return {
-          success: true,
-          available: true,
-          message: `Perfect! ${dateStr} at ${timeStr} is available. Would you like me to book this consultation for you?`
-        }
-      } else {
-        return {
-          success: true,
-          available: false,
-          message: `I'm sorry, that time slot is already booked. We have availability at other times. Would that work for you?`
-        }
-      }
-
-    } catch (error) {
-      console.error("❌ Error checking calendar:", error.message)
-      console.error("❌ Stack trace:", error.stack)
-      console.error("❌ Full error:", JSON.stringify(error, null, 2))
-      return {
-        success: false,
-        error: error.message,
-        message: "I'm having trouble checking the calendar right now. Let me take your details and someone from our team will call you back shortly to confirm a time. What's your preferred contact number?"
-      }
-    }
-  }
-
-  /**
-   * Book calendar appointment
-   */
-  async bookCalendarAppointment(params) {
-    const { email, phone, fullName, timezone, bookingDate, bookingTime, contactId, date, time, appointmentTitle } = params
-    
-    // Support both parameter formats
-    const dateStr = date || bookingDate
-    const timeStr = time || bookingTime
-    const tz = timezone || "Europe/London"
-
-    try {
-      console.log(`\n📅 Booking calendar appointment...`)
-      console.log(`   Name: ${fullName}`)
-      console.log(`   Email: ${email}`)
-      console.log(`   Phone: ${phone}`)
-      console.log(`   Contact ID: ${contactId}`)
-      console.log(`   Date: ${dateStr}`)
-      console.log(`   Time: ${timeStr}`)
-      console.log(`   Timezone: ${tz}`)
-
-      // Try to parse as ISO format first (2025-11-10 14:00)
-      let dt = DateTime.fromISO(`${dateStr}T${timeStr}`, { zone: tz })
-      
-      // If that fails, try natural language format
-      if (!dt.isValid) {
-        const dateTimeStr = `${dateStr} ${timeStr}`
-        dt = DateTime.fromFormat(dateTimeStr, "MMMM d, yyyy h:mm a", { zone: tz })
-      }
-
-      if (!dt.isValid) {
-        return {
-          success: false,
-          message: "I had trouble processing that booking time. Could you confirm the date and time again?"
-        }
-      }
-
-      // Validate required fields
-      if (!fullName && !contactId) {
-        return {
-          success: false,
-          message: "I need your name to book the appointment. Could you please tell me your full name?"
-        }
-      }
-
-      // Normalize phone number
-      let normalizedPhone = phone
-      if (phone) {
-        try {
-          const phoneNumber = parsePhoneNumber(phone, 'GB')
-          if (phoneNumber) {
-            normalizedPhone = phoneNumber.format('E.164')
-          }
-        } catch (e) {
-          console.warn("Could not parse phone number:", phone)
-        }
-      }
-
-      // Split full name (if provided)
-      let firstName = ""
-      let lastName = ""
-      if (fullName) {
-        const nameParts = fullName.trim().split(' ')
-        firstName = nameParts[0] || ""
-        lastName = nameParts.slice(1).join(' ') || ""
-      }
-
-      // Create or update contact in GHL
-      const calendarId = process.env.GHL_CALENDAR_ID
-      if (!calendarId) {
-        console.warn("⚠️  GHL_CALENDAR_ID not configured, simulating booking")
-        return {
-          success: true,
-          message: `Perfect! I've booked your consultation for ${dateStr} at ${timeStr}. You'll receive a confirmation email${email ? ` at ${email}` : ''} shortly. Is there anything else I can help you with?`
-        }
-      }
-
-      // Determine which contact ID to use
-      let finalContactId = contactId
-      
-      // If no contactId provided, create/update contact first
-      if (!contactId) {
-        const contact = await this.ghlClient.createContact({
-          firstName,
-          lastName,
-          email,
-          phone: normalizedPhone,
-          source: "Voice Assistant - Consultation Booking"
-        })
-        
-        finalContactId = contact.id || contact.contact?.id
-        console.log(`✅ Contact created/updated: ${finalContactId}`)
-      } else {
-        console.log(`✅ Using existing contact: ${finalContactId}`)
-      }
-
-      // Book the appointment
-      const appointment = await this.ghlClient.createCalendarAppointment(
-        calendarId,
-        finalContactId,
-        dt.toISO(),
-        tz,
-        appointmentTitle || "Keey Property Consultation"
-      )
-
-      console.log(`✅ Appointment booked: ${appointment.id}`)
-
-      return {
-        success: true,
-        appointmentId: appointment.id,
-        message: `Excellent! I've confirmed your consultation for ${dateStr} at ${timeStr}.${email ? ` You'll receive a confirmation email at ${email} with all the details.` : ''} We're looking forward to speaking with you!`
-      }
-
-    } catch (error) {
-      console.error("❌ Error booking appointment:", error.message)
-      console.error("❌ Stack trace:", error.stack)
-      console.error("❌ Full error:", JSON.stringify(error, null, 2))
-      return {
-        success: false,
-        error: error.message,
-        message: "I've noted all your details, but I'm having a small technical issue completing the booking right now. Don't worry - our team has your information and will call you within the next hour to confirm your consultation time. Is there anything else I can help you with?"
-      }
-    }
-  }
-
-  /**
-   * Create/update contact in GHL
-   */
   async createContact(params) {
-    const { 
-      firstName, 
-      lastName, 
-      email, 
-      phone, 
-      propertyAddress, 
-      city, 
-      postcode, 
-      bedrooms,
-      region = "London"
-    } = params
-
     try {
-      console.log(`\n👤 Creating/updating contact...`)
-      console.log(`   Name: ${firstName} ${lastName}`)
-      console.log(`   Email: ${email}`)
-      console.log(`   Phone: ${phone}`)
+      const {
+        firstName,
+        lastName,
+        email,
+        phone,
+        propertyAddress,
+        city,
+        postcode,
+        bedrooms,
+        region,
+      } = params;
+
+      console.log("\n👤 Creating/updating contact...");
+      console.log(`   Name: ${firstName} ${lastName}`);
+      console.log(`   Email: ${email}`);
+      console.log(`   Phone: ${phone}`);
 
       // Normalize phone number
-      let normalizedPhone = phone
+      let normalizedPhone = phone;
       try {
-        const countryCode = region === "Dubai" ? "AE" : "GB"
-        const phoneNumber = parsePhoneNumber(phone, countryCode)
+        const phoneNumber = parsePhoneNumber(phone, "GB");
         if (phoneNumber) {
-          normalizedPhone = phoneNumber.format('E.164')
+          normalizedPhone = phoneNumber.format("E.164");
+          console.log(`   Normalized Phone: ${normalizedPhone}`);
         }
       } catch (e) {
-        console.warn("Could not parse phone number:", phone)
+        console.log("   ⚠️  Could not parse phone number, using as-is");
       }
 
-      // Create/update contact in GHL using only supported fields
+      // Build contact payload
       const contactPayload = {
         firstName,
         lastName,
         email,
         phone: normalizedPhone,
-        source: "Voice Assistant - Lead Qualification"
-      }
+        source: "Voice Assistant - Lead Qualification",
+      };
 
-      // Add address fields only if provided (using standard GHL field names)
-      if (propertyAddress) contactPayload.address1 = propertyAddress
-      if (city) contactPayload.city = city  
-      if (postcode) contactPayload.postalCode = postcode
-      
-      // Store bedrooms and region in tags
+      // Add optional fields
+      if (propertyAddress) contactPayload.address1 = propertyAddress;
+      if (city) contactPayload.city = city;
+      if (postcode) contactPayload.postalCode = postcode;
+
+      // Add custom fields as tags
       if (region || bedrooms) {
-        contactPayload.tags = [region, bedrooms ? `${bedrooms} bedrooms` : null].filter(Boolean)
+        contactPayload.tags = [
+          region,
+          bedrooms ? `${bedrooms} bedrooms` : null,
+        ].filter(Boolean);
       }
 
-      const contact = await this.ghlClient.createContact(contactPayload)
+      console.log("📝 Creating contact in GHL...");
+      const contact = await this.ghlClient.createContact(contactPayload);
 
-      console.log(`✅ Contact created: ${contact.id || contact.contact?.id}`)
+      console.log("✅ Contact created/updated successfully");
+      console.log(`   Contact ID: ${contact.id}`);
 
       return {
         success: true,
-        contactId: contact.id || contact.contact?.id,
-        message: `Thank you, ${firstName}! I've saved all your information. Is there anything else you'd like to know about how Keey can help maximize your property's income?`
-      }
-
+        message: `Thank you for providing that information. I've saved your details. Your contact ID is ${contact.id}.`,
+        data: {
+          contactId: contact.id,
+          firstName: contact.firstName,
+          lastName: contact.lastName,
+          email: contact.email,
+          phone: contact.phone,
+        },
+      };
     } catch (error) {
-      console.error("❌ Error creating contact:", error)
+      console.error("❌ Error creating contact:", error.message);
       return {
         success: false,
-        message: "Thank you for providing that information. I've made a note of everything. How else can I assist you today?"
-      }
+        message:
+          "I apologize, but I had trouble saving your information. Could you please provide your email and phone number again?",
+        error: error.message,
+      };
     }
   }
 
-  start(port) {
-    this.app.listen(port, () => {
-      console.log(`\n✅ Vapi Function Handler running on port ${port}`)
-      console.log(`🔧 Function Webhook: http://localhost:${port}/webhook/vapi`)
-      console.log(`🏥 Health Check: http://localhost:${port}/health\n`)
-    })
+  async checkCalendarAvailability(params) {
+    try {
+      const { date, timezone } = params;
+
+      console.log("\n📅 Checking calendar availability...");
+      console.log(`   Date: ${date}`);
+      console.log(`   Timezone: ${timezone}`);
+
+      const calendarId = process.env.GHL_CALENDAR_ID;
+      if (!calendarId) {
+        throw new Error("GHL_CALENDAR_ID not configured");
+      }
+
+      // Parse date and get full day range
+      const tz = timezone || "Europe/London";
+      const dt = DateTime.fromISO(date, { zone: tz });
+      const startOfDay = dt.startOf("day").toISO();
+      const endOfDay = dt.endOf("day").toISO();
+
+      console.log(`   Checking slots from ${startOfDay} to ${endOfDay}`);
+
+      const availability = await this.ghlClient.checkCalendarAvailability(
+        calendarId,
+        startOfDay,
+        endOfDay,
+        tz
+      );
+
+      console.log(`✅ Found ${availability.slots?.length || 0} available slots`);
+
+      if (!availability.slots || availability.slots.length === 0) {
+        return {
+          success: true,
+          message: `I'm sorry, but we don't have any available slots on ${dt.toFormat(
+            "MMMM dd, yyyy"
+          )}. Would you like to try a different date?`,
+          data: { availableSlots: [] },
+        };
+      }
+
+      // Format slots for the AI to read naturally
+      const formattedSlots = availability.slots
+        .slice(0, 5)
+        .map((slot) => {
+          const time = DateTime.fromISO(slot, { zone: tz });
+          return time.toFormat("h:mm a");
+        })
+        .join(", ");
+
+      return {
+        success: true,
+        message: `Great! On ${dt.toFormat(
+          "MMMM dd"
+        )}, we have availability at: ${formattedSlots}. Which time works best for you?`,
+        data: {
+          availableSlots: availability.slots,
+          displaySlots: formattedSlots,
+        },
+      };
+    } catch (error) {
+      console.error("❌ Error checking calendar availability:", error.message);
+      return {
+        success: false,
+        message:
+          "I apologize, but I'm having trouble checking our calendar right now. Could you please try again or call us directly at 0203 967 3687?",
+        error: error.message,
+      };
+    }
+  }
+
+  async bookCalendarAppointment(params) {
+    try {
+      const {
+        email,
+        phone,
+        fullName,
+        timezone,
+        bookingDate,
+        bookingTime,
+        contactId,
+        appointmentTitle,
+      } = params;
+
+      console.log("\n📅 Booking calendar appointment...");
+      console.log(`   Contact: ${fullName} (${email})`);
+      console.log(`   Date: ${bookingDate}`);
+      console.log(`   Time: ${bookingTime}`);
+
+      const calendarId = process.env.GHL_CALENDAR_ID;
+      if (!calendarId) {
+        throw new Error("GHL_CALENDAR_ID not configured");
+      }
+
+      // Combine date and time
+      const tz = timezone || "Europe/London";
+      const dateTime = DateTime.fromISO(`${bookingDate}T${bookingTime}`, {
+        zone: tz,
+      });
+
+      if (!dateTime.isValid) {
+        throw new Error(`Invalid date/time: ${bookingDate}T${bookingTime}`);
+      }
+
+      const startTime = dateTime.toISO();
+      console.log(`   Booking for: ${startTime}`);
+
+      // Book the appointment
+      const appointment = await this.ghlClient.bookAppointment({
+        calendarId,
+        contactId,
+        startTime,
+        timezone: tz,
+        title: appointmentTitle || "Property Consultation",
+        email,
+        phone,
+        fullName,
+      });
+
+      console.log("✅ Appointment booked successfully");
+      console.log(`   Appointment ID: ${appointment.id}`);
+
+      return {
+        success: true,
+        message: `Perfect! I've scheduled your appointment for ${dateTime.toFormat(
+          "MMMM dd"
+        )} at ${dateTime.toFormat(
+          "h:mm a"
+        )}. You'll receive a confirmation email shortly at ${email}. Is there anything else I can help you with?`,
+        data: {
+          appointmentId: appointment.id,
+          startTime: dateTime.toFormat("yyyy-MM-dd HH:mm"),
+          timezone: tz,
+        },
+      };
+    } catch (error) {
+      console.error("❌ Error booking appointment:", error.message);
+      return {
+        success: false,
+        message:
+          "I apologize, but I'm having trouble booking your appointment right now. Could you please try again or call us directly at 0203 967 3687 to schedule?",
+        error: error.message,
+      };
+    }
+  }
+
+  async updateAppointmentConfirmation(params) {
+    try {
+      const { contactId, appointmentId, status, notes } = params;
+
+      console.log("\n✅ Updating appointment confirmation...");
+      console.log(`   Contact ID: ${contactId}`);
+      console.log(`   Appointment ID: ${appointmentId}`);
+      console.log(`   Status: ${status}`);
+
+      // Update contact with confirmation status
+      const updateData = {
+        customField: {
+          appointment_confirmation_status: status,
+          appointment_confirmation_time: new Date().toISOString(),
+        },
+      };
+
+      if (notes) {
+        updateData.customField.appointment_confirmation_notes = notes;
+      }
+
+      // Update contact in GHL
+      await this.ghlClient.updateContact(contactId, updateData);
+
+      console.log("✅ Confirmation status updated successfully");
+
+      // Prepare response message based on status
+      let responseMessage;
+      switch (status.toLowerCase()) {
+        case "confirmed":
+          responseMessage =
+            "Thank you for confirming! We look forward to speaking with you at your scheduled time.";
+          break;
+        case "cancelled":
+          responseMessage =
+            "I understand. I've cancelled your appointment. Feel free to call us back at 0203 967 3687 when you're ready to reschedule.";
+          break;
+        case "reschedule":
+          responseMessage =
+            "No problem! Someone from our team will reach out to you shortly to find a better time.";
+          break;
+        case "no_answer":
+          responseMessage =
+            "We'll try to reach you again closer to your appointment time.";
+          break;
+        default:
+          responseMessage = "I've updated your appointment status.";
+      }
+
+      return {
+        success: true,
+        message: responseMessage,
+        data: {
+          contactId,
+          appointmentId,
+          status,
+          updatedAt: new Date().toISOString(),
+        },
+      };
+    } catch (error) {
+      console.error("❌ Error updating confirmation:", error.message);
+      return {
+        success: false,
+        message:
+          "I've noted your response, but there was a technical issue updating our system. Our team will follow up with you.",
+        error: error.message,
+      };
+    }
   }
 }
 
-module.exports = VapiFunctionHandler
-
+module.exports = VapiFunctionHandler;
