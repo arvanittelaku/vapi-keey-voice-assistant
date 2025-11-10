@@ -52,4 +52,6 @@ temp/
 
 # Documentation (exclude from deployment)
 *.md
+# Exception: Keep enhancement plan
+!ENHANCEMENT_PLAN.md
 
