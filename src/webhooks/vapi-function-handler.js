@@ -318,10 +318,15 @@ class VapiFunctionHandler {
       console.log(`   Appointment ID: ${appointmentId}`);
       console.log(`   Status: ${status}`);
 
-      // Update contact with confirmation status using custom field ID
+      // Update contact with confirmation status using customFields array
       // Custom Field: "Confirmation" (ID: YLvP62hGzQMhfl2YMxTj)
       const updateData = {
-        "YLvP62hGzQMhfl2YMxTj": status
+        customFields: [
+          {
+            id: "YLvP62hGzQMhfl2YMxTj",
+            value: status
+          }
+        ]
       };
 
       console.log(`   Update Data:`, JSON.stringify(updateData, null, 2));
