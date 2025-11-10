@@ -107,7 +107,12 @@ class GHLToVapiWebhook {
         console.log("\n📞 Initiating Vapi outbound call...")
         
         // Ensure phone number is in E.164 format
-        let formattedPhone = phone.replace(/\s/g, ''); // Remove spaces
+        let formattedPhone = phone
+          .replace(/\s/g, '')      // Remove spaces
+          .replace(/\(/g, '')      // Remove (
+          .replace(/\)/g, '')      // Remove )
+          .replace(/-/g, '')       // Remove dashes
+          .replace(/\./g, '');     // Remove dots
         
         // If phone doesn't start with +, try to add country code
         if (!formattedPhone.startsWith('+')) {
@@ -115,6 +120,8 @@ class GHLToVapiWebhook {
           const countryCode = region === 'Dubai' ? '+971' : '+44';
           formattedPhone = countryCode + formattedPhone.replace(/^0+/, ''); // Remove leading zeros
         }
+        
+        console.log(`   📱 Phone formatting: "${phone}" → "${formattedPhone}"`);
 
         // Build call data based on call type
         const callData = {
