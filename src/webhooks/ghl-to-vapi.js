@@ -118,7 +118,6 @@ class GHLToVapiWebhook {
 
         // Build call data based on call type
         const callData = {
-          phoneNumberId: process.env.VAPI_PHONE_NUMBER_ID,
           customer: {
             number: formattedPhone, // E.164 formatted phone number
             name: `${firstName} ${lastName}`.trim()
@@ -129,18 +128,20 @@ class GHLToVapiWebhook {
           }
         }
 
-        // Use appropriate assistant/squad based on call type
+        // Use appropriate phone number, assistant/squad based on call type
         if (isConfirmationCall) {
-          console.log("📋 Confirmation call detected - Using Confirmation Assistant")
+          console.log("📋 Confirmation call detected - Using Confirmation Assistant & Phone Number")
+          callData.phoneNumberId = process.env.VAPI_CONFIRMATION_PHONE_NUMBER_ID || process.env.VAPI_PHONE_NUMBER_ID
           callData.assistantId = process.env.VAPI_CONFIRMATION_ASSISTANT_ID
         } else {
-          console.log("📋 Lead qualification call - Using Squad")
+          console.log("📋 Lead qualification call - Using Squad & Main Phone Number")
+          callData.phoneNumberId = process.env.VAPI_PHONE_NUMBER_ID
           callData.squadId = process.env.VAPI_SQUAD_ID
         }
 
         console.log("🔍 DEBUG - Original phone:", phone)
         console.log("🔍 DEBUG - Formatted phone:", formattedPhone)
-        console.log("🔍 DEBUG - Phone Number ID:", process.env.VAPI_PHONE_NUMBER_ID)
+        console.log("🔍 DEBUG - Phone Number ID:", callData.phoneNumberId)
         console.log("🔍 DEBUG - Assistant/Squad ID:", isConfirmationCall ? process.env.VAPI_CONFIRMATION_ASSISTANT_ID : process.env.VAPI_SQUAD_ID)
         console.log("📤 Call Data:", JSON.stringify(callData, null, 2))
 
