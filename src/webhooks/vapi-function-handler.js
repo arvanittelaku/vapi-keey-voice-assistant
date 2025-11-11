@@ -49,6 +49,10 @@ class VapiFunctionHandler {
             result = await this.updateAppointmentConfirmation(parameters);
             break;
 
+          case "cancel_appointment":
+            result = await this.cancelAppointment(parameters);
+            break;
+
           default:
             console.error(`❌ Unknown function: ${functionName}`);
             result = {
@@ -375,6 +379,55 @@ class VapiFunctionHandler {
         success: false,
         message:
           "I've noted your response, but there was a technical issue updating our system. Our team will follow up with you.",
+        error: error.message,
+      };
+    }
+  }
+
+  async cancelAppointment(params) {
+    try {
+      const { appointmentId, contactId, reason } = params;
+
+      console.log("\n🗑️ Canceling appointment...");
+      console.log(`   Appointment ID: ${appointmentId}`);
+      console.log(`   Contact ID: ${contactId}`);
+      if (reason) {
+        console.log(`   Reason: ${reason}`);
+      }
+
+      // Cancel the appointment in GHL calendar
+      await this.ghlClient.cancelCalendarAppointment(appointmentId);
+
+      // Update contact's confirmation status to "cancelled"
+      const updateData = {
+        customFields: [
+          {
+            id: "YLvP62hGzQMhfl2YMxTj",
+            value: "cancelled"
+          }
+        ]
+      };
+
+      await this.ghlClient.updateContact(contactId, updateData);
+
+      console.log("✅ Appointment cancelled successfully");
+
+      return {
+        success: true,
+        message: "I've cancelled your appointment. Feel free to call us back at 0203 967 3687 when you're ready to reschedule.",
+        data: {
+          appointmentId,
+          contactId,
+          reason: reason || "Not specified",
+          cancelledAt: new Date().toISOString(),
+        },
+      };
+    } catch (error) {
+      console.error("❌ Error canceling appointment:", error.message);
+      return {
+        success: false,
+        message:
+          "I've noted your cancellation, but there was a technical issue updating our calendar. Our team will follow up with you.",
         error: error.message,
       };
     }

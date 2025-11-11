@@ -270,6 +270,38 @@ class GHLClient {
     }
   }
 
+  // Cancel calendar appointment
+  async cancelCalendarAppointment(appointmentId) {
+    try {
+      const headers = {
+        ...this.headers,
+        "Version": "2021-07-28"
+      }
+
+      console.log(`🗑️ Canceling appointment:`)
+      console.log(`   Appointment ID: ${appointmentId}`)
+
+      const response = await axios.delete(
+        `https://services.leadconnectorhq.com/calendars/events/appointments/${appointmentId}`,
+        { headers }
+      )
+      
+      console.log("✅ Calendar appointment cancelled successfully!")
+      return response.data
+    } catch (error) {
+      console.error(
+        "❌ Error canceling calendar appointment:",
+        error.response?.data || error.message
+      )
+      
+      if (error.response?.status === 404) {
+        console.error("   Appointment not found (may have already been deleted)")
+      }
+      
+      throw error
+    }
+  }
+
   // Trigger workflow
   async triggerWorkflow(workflowId, contactId, customData = {}) {
     try {

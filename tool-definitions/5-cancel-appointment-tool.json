@@ -1,0 +1,23 @@
+{
+  "name": "cancel_appointment",
+  "description": "Cancels a calendar appointment in GoHighLevel when a customer cannot attend. Use this when a customer definitively cannot make their scheduled appointment and doesn't want to reschedule immediately.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "appointmentId": {
+        "type": "string",
+        "description": "The appointment ID to cancel (provided in the call metadata)"
+      },
+      "contactId": {
+        "type": "string",
+        "description": "The GoHighLevel contact ID (provided in the call metadata)"
+      },
+      "reason": {
+        "type": "string",
+        "description": "Optional reason for cancellation provided by the customer (e.g., 'scheduling conflict', 'no longer interested', 'will call back later')"
+      }
+    },
+    "required": ["appointmentId", "contactId"]
+  }
+}
+
