@@ -38,7 +38,8 @@
     "get-custom-field": "node scripts/get-custom-field-id.js",
     "test-ghl-update": "node scripts/test-ghl-update.js",
     "get-appointments": "node scripts/get-contact-appointments.js",
-    "test-all-tools": "node scripts/test-all-tools.js"
+    "test-all-tools": "node scripts/test-all-tools.js",
+    "test-sms": "node scripts/test-sms-handler.js"
   },
   "keywords": [
     "vapi",
