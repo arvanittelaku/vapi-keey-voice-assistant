@@ -352,13 +352,38 @@ class GHLClient {
   // Trigger workflow
   async triggerWorkflow(workflowId, contactId, customData = {}) {
     try {
-      const response = await axios.post(
-        `${this.baseURL}/workflows/${workflowId}/contacts/${contactId}`,
-        { customData },
-        { headers: this.headers }
-      )
-      console.log("✅ Workflow triggered successfully")
-      return response.data
+      // If workflowId is actually a webhook URL (starts with http), use it directly
+      // Otherwise, use the workflow API endpoint
+      const isWebhookUrl = workflowId && workflowId.startsWith('http');
+      
+      if (isWebhookUrl) {
+        // Direct webhook trigger (for Inbound Webhook triggers)
+        console.log("🔗 Triggering workflow via webhook URL");
+        const response = await axios.post(
+          workflowId,
+          {
+            contactId,
+            ...customData
+          },
+          {
+            headers: {
+              'Content-Type': 'application/json'
+            }
+          }
+        );
+        console.log("✅ Workflow webhook triggered successfully");
+        return response.data;
+      } else {
+        // Standard workflow API trigger
+        console.log("🔗 Triggering workflow via API");
+        const response = await axios.post(
+          `${this.baseURL}/workflows/${workflowId}/contacts/${contactId}`,
+          { customData },
+          { headers: this.headers }
+        );
+        console.log("✅ Workflow triggered successfully");
+        return response.data;
+      }
     } catch (error) {
       console.error(
         "❌ Error triggering workflow:",

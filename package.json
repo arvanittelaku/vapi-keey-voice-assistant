@@ -39,7 +39,8 @@
     "test-ghl-update": "node scripts/test-ghl-update.js",
     "get-appointments": "node scripts/get-contact-appointments.js",
     "test-all-tools": "node scripts/test-all-tools.js",
-    "test-sms": "node scripts/test-sms-handler.js"
+    "test-sms": "node scripts/test-sms-handler.js",
+    "test-workflows": "node scripts/test-workflows.js"
   },
   "keywords": [
     "vapi",
