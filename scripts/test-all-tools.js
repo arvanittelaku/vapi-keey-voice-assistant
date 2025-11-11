@@ -18,14 +18,20 @@ async function callTool(toolName, parameters, testId) {
   console.log(`   Parameters:`, JSON.stringify(parameters, null, 2));
 
   try {
+    // Use the NEW format that Vapi actually sends during live calls
     const response = await axios.post(WEBHOOK_ENDPOINT, {
       message: {
-        type: "function-call",
-        toolCallId: testId,
-        functionCall: {
-          name: toolName,
-          parameters: parameters
-        }
+        type: "tool-calls",  // NEW: plural "tool-calls" instead of "function-call"
+        toolCalls: [         // NEW: array of tool calls
+          {
+            id: testId || `call_test_${Date.now()}`,
+            type: "function",
+            function: {
+              name: toolName,
+              arguments: JSON.stringify(parameters),  // NEW: arguments as JSON string
+            },
+          },
+        ],
       },
       call: {
         id: `test-${toolName}-${Date.now()}`
