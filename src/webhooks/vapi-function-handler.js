@@ -360,6 +360,17 @@ class VapiFunctionHandler {
 
       console.log("✅ Confirmation status updated successfully");
 
+      // Update appointment status in calendar if customer confirmed
+      if (status.toLowerCase() === "confirmed" && appointmentId) {
+        try {
+          await this.ghlClient.confirmCalendarAppointment(appointmentId);
+          console.log("✅ Appointment status updated to 'confirmed' in calendar");
+        } catch (error) {
+          console.error("⚠️  Could not update appointment status in calendar:", error.message);
+          // Don't fail the whole operation if calendar update fails
+        }
+      }
+
       // Trigger appropriate workflow based on status
       await this.triggerWorkflowByStatus(status.toLowerCase(), contactId, {
         appointmentId,

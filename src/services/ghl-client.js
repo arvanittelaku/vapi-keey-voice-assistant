@@ -310,6 +310,45 @@ class GHLClient {
     }
   }
 
+  // Confirm calendar appointment (updates status to "confirmed")
+  async confirmCalendarAppointment(appointmentId) {
+    try {
+      const headers = {
+        ...this.headers,
+        "Version": "2021-07-28"
+      }
+
+      console.log(`✅ Confirming appointment:`)
+      console.log(`   Appointment ID: ${appointmentId}`)
+
+      // Update appointment status to "confirmed"
+      const response = await axios.put(
+        `https://services.leadconnectorhq.com/calendars/events/appointments/${appointmentId}`,
+        {
+          appointmentStatus: "confirmed"
+        },
+        { headers }
+      )
+      
+      console.log("✅ Calendar appointment confirmed successfully!")
+      console.log("   Status updated to: confirmed")
+      return response.data
+    } catch (error) {
+      console.error(
+        "❌ Error confirming calendar appointment:",
+        error.response?.data || error.message
+      )
+      
+      if (error.response?.status === 404) {
+        console.error("   Appointment not found")
+      } else if (error.response?.status === 401) {
+        console.error("   Authentication issue - check GHL_API_KEY permissions")
+      }
+      
+      throw error
+    }
+  }
+
   // Trigger workflow
   async triggerWorkflow(workflowId, contactId, customData = {}) {
     try {
