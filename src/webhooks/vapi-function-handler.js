@@ -269,19 +269,30 @@ class VapiFunctionHandler {
       const tz = timezone || "Europe/London";
       let dateTime;
 
-      // Support two formats:
-      // 1. Separate bookingDate + bookingTime (original format)
-      // 2. Single startTime ISO timestamp (confirmation assistant format)
+      // Support three formats:
+      // 1. Single startTime ISO timestamp (confirmation assistant format)
+      // 2. Natural language bookingDate + bookingTime (Vapi format: "tomorrow", "2 PM")
+      // 3. ISO bookingDate + bookingTime (legacy format: "2025-11-12", "13:00")
       if (startTime) {
         // Format: "2025-11-12T13:00:00.000Z" or "2025-11-12T13:00:00Z"
         console.log(`   Start Time (ISO): ${startTime}`);
         dateTime = DateTime.fromISO(startTime, { zone: tz });
       } else if (bookingDate && bookingTime) {
-        // Format: bookingDate="2025-11-12", bookingTime="13:00"
         console.log(`   Date: ${bookingDate}, Time: ${bookingTime}`);
-        dateTime = DateTime.fromISO(`${bookingDate}T${bookingTime}`, {
-          zone: tz,
+        
+        // Try to parse as natural language first (e.g., "tomorrow", "Monday")
+        const parsedDate = this.parseNaturalDate(bookingDate, tz);
+        const parsedTime = this.parseNaturalTime(bookingTime, tz);
+        
+        // Combine the date and time
+        dateTime = parsedDate.set({
+          hour: parsedTime.hour,
+          minute: parsedTime.minute,
+          second: 0,
+          millisecond: 0
         });
+        
+        console.log(`   Parsed to: ${dateTime.toISO()}`);
       } else {
         throw new Error("Either 'startTime' or both 'bookingDate' and 'bookingTime' are required");
       }
@@ -582,6 +593,55 @@ class VapiFunctionHandler {
     // Fallback: return tomorrow if we can't parse it
     console.warn(`⚠️  Could not parse date "${dateString}", defaulting to tomorrow`);
     return now.plus({ days: 1 });
+  }
+
+  /**
+   * Parse natural language time strings
+   * Handles: "2 PM", "14:00", "3:30 PM", "16 o'clock", "2pm", "14.00"
+   */
+  parseNaturalTime(timeString, timezone = "Europe/London") {
+    const lowerTime = timeString.toLowerCase().trim();
+    
+    // Remove common words
+    const cleanTime = lowerTime.replace(/o'clock/g, '').replace(/\s+/g, '');
+    
+    // Try parsing as standard time format
+    const timeFormats = [
+      'h:mm a',      // "2:30 PM"
+      'ha',          // "2PM"
+      'h a',         // "2 PM"
+      'HH:mm',       // "14:30"
+      'H:mm',        // "9:30"
+      'HH.mm',       // "14.30"
+      'H',           // "14"
+    ];
+    
+    for (const format of timeFormats) {
+      try {
+        const parsed = DateTime.fromFormat(timeString, format, { zone: timezone });
+        if (parsed.isValid) {
+          return parsed;
+        }
+      } catch (e) {
+        // Try next format
+      }
+    }
+    
+    // Try with cleaned string
+    for (const format of timeFormats) {
+      try {
+        const parsed = DateTime.fromFormat(cleanTime, format, { zone: timezone });
+        if (parsed.isValid) {
+          return parsed;
+        }
+      } catch (e) {
+        // Try next format
+      }
+    }
+    
+    // Fallback: default to 2 PM
+    console.warn(`⚠️  Could not parse time "${timeString}", defaulting to 2 PM`);
+    return DateTime.now().setZone(timezone).set({ hour: 14, minute: 0, second: 0 });
   }
 }
 

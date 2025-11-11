@@ -60,20 +60,12 @@ async function runTests() {
   console.log("\n" + "=".repeat(60));
 
   // Test 2: Check Calendar Availability
-  const tomorrow = new Date();
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  tomorrow.setHours(0, 0, 0, 0);
-  
-  const dayAfter = new Date(tomorrow);
-  dayAfter.setDate(dayAfter.getDate() + 2);
-  dayAfter.setHours(23, 59, 59, 999);
-
+  // Vapi sends natural language dates and times, not ISO strings
   await callTool(
     "check_calendar_availability_keey",
     {
-      calendarId: TEST_CALENDAR_ID,
-      startDate: tomorrow.toISOString(),
-      endDate: dayAfter.toISOString(),
+      requestedDate: "tomorrow",  // Natural language date
+      requestedTime: "2 PM",      // Natural language time
       timezone: "Europe/London"
     },
     "test-availability-001"
@@ -82,17 +74,16 @@ async function runTests() {
   console.log("\n" + "=".repeat(60));
 
   // Test 3: Book Calendar Appointment
-  const appointmentTime = new Date(tomorrow);
-  appointmentTime.setHours(14, 0, 0, 0); // 2 PM tomorrow
-
+  // Vapi sends natural language dates/times + contact data
   const bookResult = await callTool(
     "book_calendar_appointment_keey",
     {
-      calendarId: TEST_CALENDAR_ID,
-      contactId: TEST_CONTACT_ID,
-      startTime: appointmentTime.toISOString(),
+      bookingDate: "tomorrow",      // Natural language date (Vapi format)
+      bookingTime: "2 PM",          // Natural language time (Vapi format)
       timezone: "Europe/London",
-      appointmentTitle: "Test Appointment - Will be Cancelled"
+      fullName: "Test User",        // Required by Vapi
+      email: "test@example.com",    // Required by Vapi
+      phone: "+447700900000"        // Required by Vapi
     },
     "test-book-001"
   );
