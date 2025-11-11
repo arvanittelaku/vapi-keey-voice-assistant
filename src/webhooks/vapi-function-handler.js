@@ -19,13 +19,32 @@ class VapiFunctionHandler {
 
         const { message, call } = req.body;
 
-        if (!message || message.type !== "function-call") {
+        // Handle both "function-call" (old format) and "tool-calls" (new format)
+        if (!message || (message.type !== "function-call" && message.type !== "tool-calls")) {
           console.log("⚠️  Not a function call, ignoring");
           return res.json({ success: true, message: "Not a function call" });
         }
 
-        const { functionCall } = message;
-        const { name: functionName, parameters } = functionCall;
+        // Extract function info based on message type
+        let functionName, parameters;
+        
+        if (message.type === "tool-calls") {
+          // New format: extract from toolCalls array
+          const toolCall = message.toolCalls?.[0] || message.toolCallList?.[0];
+          if (!toolCall || !toolCall.function) {
+            console.log("⚠️  No tool call found in tool-calls message");
+            return res.json({ success: false, message: "No tool call found" });
+          }
+          functionName = toolCall.function.name;
+          parameters = typeof toolCall.function.arguments === 'string' 
+            ? JSON.parse(toolCall.function.arguments) 
+            : toolCall.function.arguments;
+        } else {
+          // Old format: extract from functionCall
+          const { functionCall } = message;
+          functionName = functionCall.name;
+          parameters = functionCall.parameters;
+        }
 
         console.log(`🛠️  Function Called: ${functionName}`);
         console.log("📋 Parameters:", parameters);
