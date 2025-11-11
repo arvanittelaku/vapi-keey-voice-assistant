@@ -360,6 +360,13 @@ class VapiFunctionHandler {
 
       console.log("✅ Confirmation status updated successfully");
 
+      // Trigger appropriate workflow based on status
+      await this.triggerWorkflowByStatus(status.toLowerCase(), contactId, {
+        appointmentId,
+        notes,
+        timestamp: new Date().toISOString()
+      });
+
       // Prepare response message based on status
       let responseMessage;
       switch (status.toLowerCase()) {
@@ -432,6 +439,13 @@ class VapiFunctionHandler {
 
       console.log("✅ Appointment cancelled successfully");
 
+      // Trigger cancellation workflow
+      await this.triggerWorkflowByStatus("cancelled", contactId, {
+        appointmentId,
+        reason: reason || "Not specified",
+        cancelledAt: new Date().toISOString()
+      });
+
       return {
         success: true,
         message: "I've cancelled your appointment. Feel free to call us back at 0203 967 3687 when you're ready to reschedule.",
@@ -450,6 +464,42 @@ class VapiFunctionHandler {
           "I've noted your cancellation, but there was a technical issue updating our calendar. Our team will follow up with you.",
         error: error.message,
       };
+    }
+  }
+
+  // Helper function to trigger workflows based on confirmation status
+  async triggerWorkflowByStatus(status, contactId, customData = {}) {
+    try {
+      // Map status to workflow environment variable
+      const workflowMap = {
+        confirmed: process.env.GHL_WORKFLOW_CONFIRMED,
+        cancelled: process.env.GHL_WORKFLOW_CANCELLED,
+        reschedule: process.env.GHL_WORKFLOW_RESCHEDULE,
+        no_answer: process.env.GHL_WORKFLOW_NO_ANSWER,
+      };
+
+      const workflowId = workflowMap[status];
+
+      if (!workflowId) {
+        console.log(`⚠️  No workflow configured for status: ${status}`);
+        console.log(`   Skipping workflow trigger (set GHL_WORKFLOW_${status.toUpperCase()} to enable)`);
+        return { skipped: true, reason: "No workflow ID configured" };
+      }
+
+      console.log(`\n🔔 Triggering workflow for status: ${status}`);
+      console.log(`   Workflow ID: ${workflowId}`);
+      console.log(`   Contact ID: ${contactId}`);
+      console.log(`   Custom Data:`, JSON.stringify(customData, null, 2));
+
+      // Trigger the workflow
+      const result = await this.ghlClient.triggerWorkflow(workflowId, contactId, customData);
+
+      console.log(`✅ Workflow triggered successfully`);
+      return { success: true, workflowId, result };
+    } catch (error) {
+      console.error(`⚠️  Error triggering workflow for status ${status}:`, error.message);
+      // Don't fail the main operation if workflow triggering fails
+      return { success: false, error: error.message };
     }
   }
 }
