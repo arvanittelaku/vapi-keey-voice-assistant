@@ -299,11 +299,11 @@ class VapiFunctionHandler {
       // 1. Single startTime ISO timestamp (confirmation assistant format)
       // 2. Natural language bookingDate + bookingTime (Vapi format: "tomorrow", "2 PM")
       // 3. ISO bookingDate + bookingTime (legacy format: "2025-11-12", "13:00")
-      if (startTime) {
+      if (startTime && startTime.trim()) {
         // Format: "2025-11-12T13:00:00.000Z" or "2025-11-12T13:00:00Z"
         console.log(`   Start Time (ISO): ${startTime}`);
         dateTime = DateTime.fromISO(startTime, { zone: tz });
-      } else if (bookingDate && bookingTime) {
+      } else if (bookingDate && bookingDate.trim() && bookingTime && bookingTime.trim()) {
         console.log(`   Date: ${bookingDate}, Time: ${bookingTime}`);
         
         // Try to parse as natural language first (e.g., "tomorrow", "Monday")
@@ -320,7 +320,14 @@ class VapiFunctionHandler {
         
         console.log(`   Parsed to: ${dateTime.toISO()}`);
       } else {
-        throw new Error("Either 'startTime' or both 'bookingDate' and 'bookingTime' are required");
+        console.error("❌ Missing required booking parameters!");
+        console.error(`   startTime: "${startTime || ''}"`);
+        console.error(`   bookingDate: "${bookingDate || ''}"`);
+        console.error(`   bookingTime: "${bookingTime || ''}"`);
+        throw new Error(
+          "I need the appointment date and time to book this for you. " +
+          "Could you please tell me what day and time works best?"
+        );
       }
 
       if (!dateTime.isValid) {
