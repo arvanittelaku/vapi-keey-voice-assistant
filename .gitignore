@@ -52,6 +52,7 @@ temp/
 
 # Documentation (exclude from deployment)
 *.md
-# Exception: Keep enhancement plan
+# Exception: Keep enhancement plan and testing checklist
 !ENHANCEMENT_PLAN.md
+!TESTING_CHECKLIST.md
 
