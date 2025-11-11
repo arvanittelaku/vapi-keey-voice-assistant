@@ -1,7 +1,7 @@
 const axios = require("axios");
 require("dotenv").config();
 
-const SERVER_URL = process.env.RENDER_URL || "http://localhost:3000";
+const SERVER_URL = process.env.RENDER_URL || "https://vapi-keey-voice-assistant.onrender.com";
 const WEBHOOK_ENDPOINT = `${SERVER_URL}/webhook/vapi`;
 
 // Test data
