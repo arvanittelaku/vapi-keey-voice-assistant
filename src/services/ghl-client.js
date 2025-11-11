@@ -270,7 +270,7 @@ class GHLClient {
     }
   }
 
-  // Cancel calendar appointment
+  // Cancel calendar appointment (updates status to "cancelled")
   async cancelCalendarAppointment(appointmentId) {
     try {
       const headers = {
@@ -281,12 +281,18 @@ class GHLClient {
       console.log(`🗑️ Canceling appointment:`)
       console.log(`   Appointment ID: ${appointmentId}`)
 
-      const response = await axios.delete(
+      // Update appointment status to "cancelled" instead of deleting
+      // This is better for audit trail and is supported by GHL IAM
+      const response = await axios.put(
         `https://services.leadconnectorhq.com/calendars/events/appointments/${appointmentId}`,
+        {
+          appointmentStatus: "cancelled"
+        },
         { headers }
       )
       
       console.log("✅ Calendar appointment cancelled successfully!")
+      console.log("   Status updated to: cancelled")
       return response.data
     } catch (error) {
       console.error(
@@ -295,7 +301,9 @@ class GHLClient {
       )
       
       if (error.response?.status === 404) {
-        console.error("   Appointment not found (may have already been deleted)")
+        console.error("   Appointment not found")
+      } else if (error.response?.status === 401) {
+        console.error("   Authentication issue - check GHL_API_KEY permissions")
       }
       
       throw error

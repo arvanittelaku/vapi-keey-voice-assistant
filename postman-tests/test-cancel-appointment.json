@@ -1,0 +1,57 @@
+{
+  "info": {
+    "name": "Test Cancel Appointment Tool",
+    "description": "Tests the cancel_appointment Vapi function",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "1. Cancel Appointment - Success",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"message\": {\n    \"type\": \"function-call\",\n    \"toolCallId\": \"test-cancel-001\",\n    \"functionCall\": {\n      \"name\": \"cancel_appointment\",\n      \"parameters\": {\n        \"appointmentId\": \"YOUR_APPOINTMENT_ID_HERE\",\n        \"contactId\": \"ZtrIOxo50WVcsLbWK961\",\n        \"reason\": \"scheduling conflict\"\n      }\n    }\n  },\n  \"call\": {\n    \"id\": \"call-cancel-test\"\n  }\n}"
+        },
+        "url": {
+          "raw": "http://localhost:3000/webhook/vapi",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "3000",
+          "path": ["webhook", "vapi"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "2. Cancel Appointment - Production Server",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"message\": {\n    \"type\": \"function-call\",\n    \"toolCallId\": \"test-cancel-002\",\n    \"functionCall\": {\n      \"name\": \"cancel_appointment\",\n      \"parameters\": {\n        \"appointmentId\": \"YOUR_APPOINTMENT_ID_HERE\",\n        \"contactId\": \"ZtrIOxo50WVcsLbWK961\",\n        \"reason\": \"testing cancellation\"\n      }\n    }\n  },\n  \"call\": {\n    \"id\": \"call-cancel-prod-test\"\n  }\n}"
+        },
+        "url": {
+          "raw": "https://vapi-keey-voice-assistant.onrender.com/webhook/vapi",
+          "protocol": "https",
+          "host": ["vapi-keey-voice-assistant", "onrender", "com"],
+          "path": ["webhook", "vapi"]
+        }
+      },
+      "response": []
+    }
+  ]
+}
+
