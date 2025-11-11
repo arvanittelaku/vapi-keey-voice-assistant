@@ -1,4 +1,5 @@
 const express = require("express")
+const axios = require("axios")
 const GHLToVapiWebhook = require("./src/webhooks/ghl-to-vapi")
 const VapiFunctionHandler = require("./src/webhooks/vapi-function-handler")
 const TwilioRouter = require("./src/webhooks/twilio-router")
@@ -65,4 +66,33 @@ app.listen(port, () => {
     })
   }
   console.log('\n')
+  
+  // 🔥 SELF-PING: Keep server awake on Render free tier
+  // Ping health endpoint every 14 minutes to prevent cold start
+  if (process.env.RENDER) {
+    const RENDER_URL = process.env.RENDER_EXTERNAL_URL || `https://vapi-keey-voice-assistant.onrender.com`
+    const PING_INTERVAL = 14 * 60 * 1000 // 14 minutes
+    
+    console.log(`🔄 Self-ping enabled: Will ping ${RENDER_URL}/health every 14 minutes`)
+    console.log(`   This keeps the server awake on Render's free tier\n`)
+    
+    setInterval(async () => {
+      try {
+        await axios.get(`${RENDER_URL}/health`, { timeout: 5000 })
+        console.log(`💓 Self-ping successful at ${new Date().toISOString()}`)
+      } catch (error) {
+        console.error(`⚠️ Self-ping failed:`, error.message)
+      }
+    }, PING_INTERVAL)
+    
+    // Initial ping after 1 minute
+    setTimeout(async () => {
+      try {
+        await axios.get(`${RENDER_URL}/health`, { timeout: 5000 })
+        console.log(`💓 Initial self-ping successful at ${new Date().toISOString()}`)
+      } catch (error) {
+        console.error(`⚠️ Initial self-ping failed:`, error.message)
+      }
+    }, 60000)
+  }
 })
