@@ -26,7 +26,7 @@ class VapiFunctionHandler {
         }
 
         // Extract function info based on message type
-        let functionName, parameters;
+        let functionName, parameters, toolCallId;
         
         if (message.type === "tool-calls") {
           // New format: extract from toolCalls array
@@ -39,11 +39,13 @@ class VapiFunctionHandler {
           parameters = typeof toolCall.function.arguments === 'string' 
             ? JSON.parse(toolCall.function.arguments) 
             : toolCall.function.arguments;
+          toolCallId = toolCall.id; // Extract the correct toolCallId
         } else {
           // Old format: extract from functionCall
           const { functionCall } = message;
           functionName = functionCall.name;
           parameters = functionCall.parameters;
+          toolCallId = message.toolCallId; // Old format uses message.toolCallId
         }
 
         console.log(`🛠️  Function Called: ${functionName}`);
@@ -82,15 +84,20 @@ class VapiFunctionHandler {
 
         console.log("✅ Function executed successfully");
         console.log("📤 Result:", result);
+        console.log("🔑 Tool Call ID:", toolCallId);
 
-        res.json({
+        // Send response with proper toolCallId
+        const response = {
           results: [
             {
               ...result,
-              toolCallId: message.toolCallId,
+              toolCallId: toolCallId,
             },
           ],
-        });
+        };
+
+        console.log("📨 Sending response to Vapi:", JSON.stringify(response, null, 2));
+        res.status(200).json(response);
       } catch (error) {
         console.error("\n❌ ERROR in function handler:", error.message);
         console.error("Stack:", error.stack);
