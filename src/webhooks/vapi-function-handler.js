@@ -247,59 +247,79 @@ class VapiFunctionHandler {
         timezone,
         bookingDate,
         bookingTime,
+        startTime,
         contactId,
         appointmentTitle,
+        calendarId,
       } = params;
 
       console.log("\n📅 Booking calendar appointment...");
-      console.log(`   Contact: ${fullName} (${email})`);
-      console.log(`   Date: ${bookingDate}`);
-      console.log(`   Time: ${bookingTime}`);
-
-      const calendarId = process.env.GHL_CALENDAR_ID;
-      if (!calendarId) {
+      
+      // Use provided calendarId or fall back to environment variable
+      const targetCalendarId = calendarId || process.env.GHL_CALENDAR_ID;
+      if (!targetCalendarId) {
         throw new Error("GHL_CALENDAR_ID not configured");
       }
 
-      // Combine date and time
       const tz = timezone || "Europe/London";
-      const dateTime = DateTime.fromISO(`${bookingDate}T${bookingTime}`, {
-        zone: tz,
-      });
+      let dateTime;
 
-      if (!dateTime.isValid) {
-        throw new Error(`Invalid date/time: ${bookingDate}T${bookingTime}`);
+      // Support two formats:
+      // 1. Separate bookingDate + bookingTime (original format)
+      // 2. Single startTime ISO timestamp (confirmation assistant format)
+      if (startTime) {
+        // Format: "2025-11-12T13:00:00.000Z" or "2025-11-12T13:00:00Z"
+        console.log(`   Start Time (ISO): ${startTime}`);
+        dateTime = DateTime.fromISO(startTime, { zone: tz });
+      } else if (bookingDate && bookingTime) {
+        // Format: bookingDate="2025-11-12", bookingTime="13:00"
+        console.log(`   Date: ${bookingDate}, Time: ${bookingTime}`);
+        dateTime = DateTime.fromISO(`${bookingDate}T${bookingTime}`, {
+          zone: tz,
+        });
+      } else {
+        throw new Error("Either 'startTime' or both 'bookingDate' and 'bookingTime' are required");
       }
 
-      const startTime = dateTime.toISO();
-      console.log(`   Booking for: ${startTime}`);
+      if (!dateTime.isValid) {
+        throw new Error(`Invalid date/time. Reason: ${dateTime.invalidReason}`);
+      }
 
-      // Book the appointment
-      const appointment = await this.ghlClient.bookAppointment({
-        calendarId,
+      const appointmentStartTime = dateTime.toISO();
+      console.log(`   Booking for: ${appointmentStartTime}`);
+
+      // Book the appointment using createCalendarAppointment method
+      const appointment = await this.ghlClient.createCalendarAppointment(
+        targetCalendarId,
         contactId,
-        startTime,
-        timezone: tz,
-        title: appointmentTitle || "Property Consultation",
-        email,
-        phone,
-        fullName,
-      });
+        appointmentStartTime,
+        tz,
+        appointmentTitle || "Keey Property Consultation"
+      );
 
       console.log("✅ Appointment booked successfully");
       console.log(`   Appointment ID: ${appointment.id}`);
 
+      // Build success message
+      const dateFormatted = dateTime.toFormat("EEEE, MMMM dd"); // e.g., "Wednesday, November 12"
+      const timeFormatted = dateTime.toFormat("h:mm a"); // e.g., "2:00 PM"
+      
+      let message = `Perfect! I've scheduled your appointment for ${dateFormatted} at ${timeFormatted}.`;
+      if (email) {
+        message += ` You'll receive a confirmation email shortly at ${email}.`;
+      } else {
+        message += ` You'll receive a confirmation email shortly.`;
+      }
+
       return {
         success: true,
-        message: `Perfect! I've scheduled your appointment for ${dateTime.toFormat(
-          "MMMM dd"
-        )} at ${dateTime.toFormat(
-          "h:mm a"
-        )}. You'll receive a confirmation email shortly at ${email}. Is there anything else I can help you with?`,
+        message: message,
         data: {
           appointmentId: appointment.id,
-          startTime: dateTime.toFormat("yyyy-MM-dd HH:mm"),
+          startTime: appointmentStartTime,
           timezone: tz,
+          dateFormatted: dateFormatted,
+          timeFormatted: timeFormatted,
         },
       };
     } catch (error) {
