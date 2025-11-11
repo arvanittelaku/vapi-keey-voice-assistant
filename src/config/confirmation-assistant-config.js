@@ -172,7 +172,7 @@ REMEMBER:
   ],
 
   // Call Settings
-  maxDurationSeconds: 300, // 5 minutes max (allows time for rescheduling during call)
+  maxDurationSeconds: 120, // 2 minutes max (safety limit for testing - increase to 300 for production)
   endCallMessage: "Thank you! We look forward to speaking with you soon.",
   recordingEnabled: true,
   silenceTimeoutSeconds: 20,

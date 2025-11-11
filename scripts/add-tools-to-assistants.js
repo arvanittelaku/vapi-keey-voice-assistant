@@ -1,10 +1,10 @@
 require("dotenv").config()
 const VapiClient = require("../src/services/vapi-client")
 
-// REPLACE THESE WITH YOUR TOOL IDs FROM VAPI DASHBOARD
+// KEEY-SPECIFIC TOOL IDs (from Vapi dashboard)
 const TOOL_IDS = {
-  checkCalendar: "YOUR_CHECK_CALENDAR_TOOL_ID",  // e.g., "22eb8501-80fb-497f-87e8-6f0a88ac5eab"
-  bookAppointment: "YOUR_BOOK_APPOINTMENT_TOOL_ID"  // e.g., "d25e90cd-e6dc-423f-9719-96ca8c6541cb"
+  checkCalendar: "22eb8501-80fb-497f-87e8-6f0a88ac5eab",  // check_calendar_availability_keey
+  bookAppointment: "d25e90cd-e6dc-423f-9719-96ca8c6541cb"  // book_calendar_appointment_keey
 }
 
 async function addToolsToAssistants() {
@@ -16,37 +16,36 @@ async function addToolsToAssistants() {
 
   console.log("\n🔧 Adding Tools to Assistants")
   console.log("=".repeat(50))
-
-  // Validate tool IDs
-  if (TOOL_IDS.checkCalendar === "YOUR_CHECK_CALENDAR_TOOL_ID") {
-    console.error("\n❌ ERROR: Please update TOOL_IDS with your actual tool IDs from Vapi dashboard!")
-    console.log("\n📝 How to get tool IDs:")
-    console.log("   1. Go to https://dashboard.vapi.ai/tools")
-    console.log("   2. Click on each tool")
-    console.log("   3. Copy the ID from the URL or tool details")
-    console.log("   4. Update TOOL_IDS in this script")
-    process.exit(1)
-  }
+  console.log("\n📋 Tool IDs:")
+  console.log(`   Check Calendar: ${TOOL_IDS.checkCalendar}`)
+  console.log(`   Book Appointment: ${TOOL_IDS.bookAppointment}`)
+  console.log("")
 
   try {
     // Update Main Assistant
     console.log("\n📝 Updating Main Assistant...")
     await client.updateAssistant(mainAssistantId, {
-      toolIds: [TOOL_IDS.checkCalendar, TOOL_IDS.bookAppointment]
+      model: {
+        toolIds: [TOOL_IDS.checkCalendar, TOOL_IDS.bookAppointment]
+      }
     })
     console.log("✅ Main Assistant updated with tools")
 
     // Update Services Assistant
     console.log("\n📝 Updating Services Assistant...")
     await client.updateAssistant(servicesAssistantId, {
-      toolIds: [TOOL_IDS.checkCalendar, TOOL_IDS.bookAppointment]
+      model: {
+        toolIds: [TOOL_IDS.checkCalendar, TOOL_IDS.bookAppointment]
+      }
     })
     console.log("✅ Services Assistant updated with tools")
 
     // Update Pricing Assistant
     console.log("\n📝 Updating Pricing Assistant...")
     await client.updateAssistant(pricingAssistantId, {
-      toolIds: [TOOL_IDS.checkCalendar, TOOL_IDS.bookAppointment]
+      model: {
+        toolIds: [TOOL_IDS.checkCalendar, TOOL_IDS.bookAppointment]
+      }
     })
     console.log("✅ Pricing Assistant updated with tools")
 

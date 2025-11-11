@@ -40,7 +40,15 @@
     "get-appointments": "node scripts/get-contact-appointments.js",
     "test-all-tools": "node scripts/test-all-tools.js",
     "test-sms": "node scripts/test-sms-handler.js",
-    "test-workflows": "node scripts/test-workflows.js"
+    "test-workflows": "node scripts/test-workflows.js",
+    "verify-squad-config": "node scripts/verify-squad-config.js",
+    "test-lead-call": "node scripts/trigger-lead-call.js",
+    "list-phone-numbers": "node scripts/list-vapi-phone-numbers.js",
+    "list-tools": "node scripts/list-vapi-tools.js",
+    "add-tools-proper": "node scripts/add-tools-properly.js",
+    "check-render-env": "node scripts/check-render-env.js",
+    "check-call-detailed": "node scripts/check-call-status-detailed.js",
+    "update-main-prompt": "node scripts/update-main-assistant-prompt.js"
   },
   "keywords": [
     "vapi",

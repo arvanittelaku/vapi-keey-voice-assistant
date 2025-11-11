@@ -170,10 +170,11 @@ class VapiFunctionHandler {
 
   async checkCalendarAvailability(params) {
     try {
-      const { date, timezone } = params;
+      const { requestedDate, requestedTime, timezone } = params;
 
       console.log("\n📅 Checking calendar availability...");
-      console.log(`   Date: ${date}`);
+      console.log(`   Requested Date: ${requestedDate}`);
+      console.log(`   Requested Time: ${requestedTime}`);
       console.log(`   Timezone: ${timezone}`);
 
       const calendarId = process.env.GHL_CALENDAR_ID;
@@ -181,11 +182,15 @@ class VapiFunctionHandler {
         throw new Error("GHL_CALENDAR_ID not configured");
       }
 
-      // Parse date and get full day range
+      // Parse the requested date and time
       const tz = timezone || "Europe/London";
-      const dt = DateTime.fromISO(date, { zone: tz });
-      const startOfDay = dt.startOf("day").toISO();
-      const endOfDay = dt.endOf("day").toISO();
+      
+      // Handle natural language dates (e.g., "tomorrow", "Monday", "November 15th")
+      const parsedDate = this.parseNaturalDate(requestedDate, tz);
+      
+      // Get full day range to check all available slots for that day
+      const startOfDay = parsedDate.startOf("day").toISO();
+      const endOfDay = parsedDate.endOf("day").toISO();
 
       console.log(`   Checking slots from ${startOfDay} to ${endOfDay}`);
 
@@ -201,7 +206,7 @@ class VapiFunctionHandler {
       if (!availability.slots || availability.slots.length === 0) {
         return {
           success: true,
-          message: `I'm sorry, but we don't have any available slots on ${dt.toFormat(
+          message: `I'm sorry, but we don't have any available slots on ${parsedDate.toFormat(
             "MMMM dd, yyyy"
           )}. Would you like to try a different date?`,
           data: { availableSlots: [] },
@@ -219,7 +224,7 @@ class VapiFunctionHandler {
 
       return {
         success: true,
-        message: `Great! On ${dt.toFormat(
+        message: `Great! On ${parsedDate.toFormat(
           "MMMM dd"
         )}, we have availability at: ${formattedSlots}. Which time works best for you?`,
         data: {
@@ -512,6 +517,71 @@ class VapiFunctionHandler {
       // Don't fail the main operation if workflow triggering fails
       return { success: false, error: error.message };
     }
+  }
+
+  /**
+   * Parse natural language date strings into DateTime objects
+   * Handles: "today", "tomorrow", "Monday", "next Friday", "November 15th", ISO dates
+   */
+  parseNaturalDate(dateString, timezone = "Europe/London") {
+    const now = DateTime.now().setZone(timezone);
+    const lowerDate = dateString.toLowerCase().trim();
+
+    // Handle "today"
+    if (lowerDate === "today") {
+      return now;
+    }
+
+    // Handle "tomorrow"
+    if (lowerDate === "tomorrow") {
+      return now.plus({ days: 1 });
+    }
+
+    // Handle day names (e.g., "Monday", "next Friday")
+    const dayNames = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
+    const dayMatch = dayNames.find(day => lowerDate.includes(day));
+    
+    if (dayMatch) {
+      const targetDayIndex = dayNames.indexOf(dayMatch);
+      let daysToAdd = (targetDayIndex - now.weekday + 7) % 7;
+      
+      // If "next" is mentioned, add 7 days
+      if (lowerDate.includes("next")) {
+        daysToAdd += 7;
+      }
+      
+      // If the day is today or already passed this week, go to next week
+      if (daysToAdd === 0 && !lowerDate.includes("today")) {
+        daysToAdd = 7;
+      }
+      
+      return now.plus({ days: daysToAdd });
+    }
+
+    // Try to parse as ISO date or standard date format
+    try {
+      const parsed = DateTime.fromISO(dateString, { zone: timezone });
+      if (parsed.isValid) {
+        return parsed;
+      }
+    } catch (e) {
+      // Ignore and try other formats
+    }
+
+    // Try to parse as a more flexible date format (e.g., "November 15th", "Nov 15", "11/15")
+    try {
+      const parsed = DateTime.fromFormat(dateString, "MMMM d", { zone: timezone });
+      if (parsed.isValid) {
+        // If the parsed date is in the past, assume next year
+        return parsed < now ? parsed.plus({ years: 1 }) : parsed;
+      }
+    } catch (e) {
+      // Ignore
+    }
+
+    // Fallback: return tomorrow if we can't parse it
+    console.warn(`⚠️  Could not parse date "${dateString}", defaulting to tomorrow`);
+    return now.plus({ days: 1 });
   }
 }
 

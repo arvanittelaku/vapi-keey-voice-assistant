@@ -137,8 +137,14 @@ class GHLToVapiWebhook {
 
         // Use appropriate phone number, assistant/squad based on call type
         if (isConfirmationCall) {
-          console.log("📋 Confirmation call detected - Using Confirmation Assistant & Phone Number")
-          callData.phoneNumberId = process.env.VAPI_CONFIRMATION_PHONE_NUMBER_ID || process.env.VAPI_PHONE_NUMBER_ID
+          console.log("📋 Confirmation call detected - Using Confirmation Assistant")
+          // Use squad if confirmation phone number is not set
+          if (process.env.VAPI_CONFIRMATION_PHONE_NUMBER_ID) {
+            callData.phoneNumberId = process.env.VAPI_CONFIRMATION_PHONE_NUMBER_ID
+          } else {
+            console.log("📋 No dedicated confirmation phone - using squad")
+            callData.squadId = process.env.VAPI_SQUAD_ID
+          }
           callData.assistantId = process.env.VAPI_CONFIRMATION_ASSISTANT_ID
         } else {
           console.log("📋 Lead qualification call - Using Squad & Main Phone Number")
