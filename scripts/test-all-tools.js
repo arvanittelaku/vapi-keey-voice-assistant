@@ -83,7 +83,8 @@ async function runTests() {
       timezone: "Europe/London",
       fullName: "Test User",        // Required by Vapi
       email: "test@example.com",    // Required by Vapi
-      phone: "+447700900000"        // Required by Vapi
+      phone: "+447700900000",       // Required by Vapi
+      contactId: TEST_CONTACT_ID    // For existing contacts (outbound calls)
     },
     "test-book-001"
   );
