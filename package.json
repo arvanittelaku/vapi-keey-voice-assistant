@@ -48,7 +48,11 @@
     "add-tools-proper": "node scripts/add-tools-properly.js",
     "check-render-env": "node scripts/check-render-env.js",
     "check-call-detailed": "node scripts/check-call-status-detailed.js",
-    "update-main-prompt": "node scripts/update-main-assistant-prompt.js"
+    "update-main-prompt": "node scripts/update-main-assistant-prompt.js",
+    "test-live-call": "node scripts/test-live-call-tools.js",
+    "wake-server": "node scripts/wake-up-server.js",
+    "test-exact-format": "node scripts/test-exact-vapi-format.js",
+    "diagnose-speed": "node scripts/diagnose-server-speed.js"
   },
   "keywords": [
     "vapi",

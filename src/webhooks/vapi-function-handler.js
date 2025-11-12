@@ -12,7 +12,26 @@ class VapiFunctionHandler {
   setupRoutes() {
     console.log("📝 VapiFunctionHandler: Registering Vapi function webhook...");
 
+    // 🔍 CRITICAL: Add logging middleware FIRST to catch ALL requests
+    this.app.use("/webhook/vapi", (req, res, next) => {
+      const timestamp = new Date().toISOString();
+      console.log(`\n⏰ ${timestamp} - Incoming webhook request`);
+      console.log(`📍 Method: ${req.method}`);
+      console.log(`📍 Headers: ${JSON.stringify(req.headers, null, 2)}`);
+      console.log(`📍 Body exists: ${!!req.body}`);
+      console.log(`📍 Body type: ${typeof req.body}`);
+      if (req.body) {
+        console.log(`📍 Body keys: ${Object.keys(req.body).join(', ')}`);
+        if (req.body.message) {
+          console.log(`📍 Message type: ${req.body.message.type}`);
+        }
+      }
+      next();
+    });
+
     this.app.post("/webhook/vapi", async (req, res) => {
+      const requestStartTime = Date.now();
+      
       try {
         console.log("\n🔔 VAPI FUNCTION CALL RECEIVED");
         console.log("📦 Payload:", JSON.stringify(req.body, null, 2));
@@ -97,10 +116,21 @@ class VapiFunctionHandler {
         };
 
         console.log("📨 Sending response to Vapi:", JSON.stringify(response, null, 2));
+        
+        const processingTime = Date.now() - requestStartTime;
+        console.log(`⏱️  Total processing time: ${processingTime}ms`);
+        
+        if (processingTime > 5000) {
+          console.log(`⚠️  WARNING: Processing took >5 seconds - Vapi may timeout!`);
+        }
+        
         res.status(200).json(response);
       } catch (error) {
         console.error("\n❌ ERROR in function handler:", error.message);
         console.error("Stack:", error.stack);
+        
+        const processingTime = Date.now() - requestStartTime;
+        console.log(`⏱️  Error occurred after ${processingTime}ms`);
 
         res.status(500).json({
           success: false,
