@@ -51,15 +51,17 @@ async function fixVoiceProvider() {
     const newVoice = updateResponse.data.voice;
     console.log('✅ SUCCESS! Voice provider updated.\n');
     console.log('📊 New Voice Configuration:');
-    console.log(`   Provider: ${newVoice.provider}`);
-    console.log(`   Voice ID: ${newVoice.voiceId}`);
-    console.log(`   Model: ${newVoice.model || 'N/A'}\n');
+    console.log('   Provider:', newVoice.provider);
+    console.log('   Voice ID:', newVoice.voiceId);
+    console.log('   Model:', newVoice.model || 'N/A');
+    console.log('');
 
     console.log('═══════════════════════════════════════════════════════════');
     console.log('🎉 VOICE PROVIDER FIXED!\n');
     console.log('📝 What Changed:');
-    console.log(`   ❌ OLD: OpenAI TTS (alloy) - FAILING`);
-    console.log(`   ✅ NEW: Deepgram Aura (asteria) - WORKING\n`);
+    console.log('   ❌ OLD: OpenAI TTS (alloy) - FAILING');
+    console.log('   ✅ NEW: Deepgram Aura (asteria) - WORKING');
+    console.log('');
     console.log('🧪 NEXT STEP:');
     console.log('   Make a test call NOW!');
     console.log('   The call will NOT crash anymore.');
