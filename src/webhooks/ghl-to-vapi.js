@@ -98,6 +98,15 @@ class GHLToVapiWebhook {
           callMetadata.appointmentTime = appointmentTime
           callMetadata.appointmentDate = appointmentDate
           callMetadata.appointmentId = appointmentId
+          
+          // Extract ONLY the time portion (e.g., "4:00 PM" from "Thursday, November 13, 2025 4:00 PM")
+          let appointmentTimeOnly = appointmentTime
+          const timeMatch = appointmentTime.match(/(\d{1,2}:\d{2}\s?[AP]M)/i)
+          if (timeMatch) {
+            appointmentTimeOnly = timeMatch[0]
+          }
+          callMetadata.appointmentTimeOnly = appointmentTimeOnly
+          
           callMetadata.greeting = `Hi ${firstName}, this is Keey calling to confirm your appointment.`
         } else {
           callMetadata.greeting = `Hi ${firstName}, this is Keey calling about your property inquiry. Do you have a moment to chat?`
