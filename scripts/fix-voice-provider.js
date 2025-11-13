@@ -37,7 +37,7 @@ async function fixVoiceProvider() {
       {
         voice: {
           provider: 'deepgram',
-          voiceId: 'aura-asteria-en' // Female, professional voice
+          voiceId: 'asteria' // Female, professional voice
         }
       },
       {
