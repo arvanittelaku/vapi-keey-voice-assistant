@@ -65,7 +65,8 @@
     "verify-phone-config": "node scripts/verify-phone-number-config.js",
     "test-exact-payload": "node scripts/test-exact-vapi-payload.js",
     "test-booking": "node scripts/test-booking-tool.js",
-    "test-full-flow": "node scripts/test-full-booking-flow.js"
+    "test-full-flow": "node scripts/test-full-booking-flow.js",
+    "fix-voice": "node scripts/fix-voice-provider.js"
   },
   "keywords": [
     "vapi",
