@@ -66,7 +66,13 @@
     "test-exact-payload": "node scripts/test-exact-vapi-payload.js",
     "test-booking": "node scripts/test-booking-tool.js",
     "test-full-flow": "node scripts/test-full-booking-flow.js",
-    "fix-voice": "node scripts/fix-voice-provider.js"
+    "fix-voice": "node scripts/fix-voice-provider.js",
+    "check-voice": "node scripts/check-current-assistant-voice.js",
+    "fix-voice-for-real": "node scripts/fix-voice-for-real.js",
+    "audit-all": "node scripts/audit-all-assistants.js",
+    "fix-all-assistants": "node scripts/fix-all-assistants.js",
+    "check-phone-assistant": "node scripts/check-phone-assistant-full.js",
+    "fix-everything": "node scripts/fix-everything-now.js"
   },
   "keywords": [
     "vapi",

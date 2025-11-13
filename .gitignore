@@ -62,3 +62,6 @@ temp/
 !PERFORMANCE_OPTIMIZATION.md
 !PRE_FLIGHT_TESTING.md
 
+# Temporary assistant audit files
+temp-assistant-issues.json
+
