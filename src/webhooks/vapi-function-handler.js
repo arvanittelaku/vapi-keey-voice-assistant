@@ -38,16 +38,20 @@ class VapiFunctionHandler {
 
         const { message, call } = req.body;
 
-        // Handle both "function-call" (old format) and "tool-calls" (new format)
-        if (!message || (message.type !== "function-call" && message.type !== "tool-calls")) {
+        // Determine message type - Vapi uses "type" for some webhooks and "role" for others
+        const messageType = message?.type || message?.role;
+
+        // Handle both "function-call" (old format) and "tool-calls"/"tool_calls" (new format)
+        if (!message || (messageType !== "function-call" && messageType !== "tool-calls" && messageType !== "tool_calls")) {
           console.log("⚠️  Not a function call, ignoring");
+          console.log(`   Message type/role: ${messageType}`);
           return res.json({ success: true, message: "Not a function call" });
         }
 
         // Extract function info based on message type
         let functionName, parameters, toolCallId;
         
-        if (message.type === "tool-calls") {
+        if (messageType === "tool-calls" || messageType === "tool_calls") {
           // New format: extract from toolCalls array
           const toolCall = message.toolCalls?.[0] || message.toolCallList?.[0];
           if (!toolCall || !toolCall.function) {
