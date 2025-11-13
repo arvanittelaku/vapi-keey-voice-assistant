@@ -60,7 +60,9 @@
     "test-direct-assistant": "node scripts/test-direct-assistant-call.js",
     "fix-squad-server": "node scripts/fix-squad-server-url.js",
     "check-server-messages": "node scripts/check-assistant-server-messages.js",
-    "fix-server-messages": "node scripts/fix-server-messages.js"
+    "fix-server-messages": "node scripts/fix-server-messages.js",
+    "final-test": "node scripts/final-comprehensive-test.js",
+    "verify-phone-config": "node scripts/verify-phone-number-config.js"
   },
   "keywords": [
     "vapi",
