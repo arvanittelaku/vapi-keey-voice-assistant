@@ -1,0 +1,30 @@
+name: Keep Server Awake 24/7
+
+on:
+  schedule:
+    # Run every 2 minutes (more conservative than 2 min, still keeps server awake)
+    - cron: "*/2 * * * *"
+  workflow_dispatch: # Allow manual trigger
+
+jobs:
+  ping-server:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Render Server
+        run: |
+          echo "🔄 Pinging Keey server to keep it awake..."
+          response=$(curl -s -w "\nHTTP_CODE:%{http_code}\nTIME:%{time_total}" --max-time 30 https://vapi-keey-voice-assistant.onrender.com/health || echo "ERROR")
+
+          if echo "$response" | grep -q "HTTP_CODE:200"; then
+            echo "✅ Server is awake and responding!"
+            echo "$response" | grep -v "HTTP_CODE\|TIME"
+            
+            # Extract response time
+            time=$(echo "$response" | grep "TIME:" | cut -d':' -f2)
+            echo "⏱️  Response time: ${time}s"
+          else
+            echo "⚠️  Server may be waking up (this is normal for first ping)"
+            echo "$response"
+          fi
+
+          echo "⏰ Next ping in 5 minutes..."
