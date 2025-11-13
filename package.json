@@ -72,7 +72,8 @@
     "audit-all": "node scripts/audit-all-assistants.js",
     "fix-all-assistants": "node scripts/fix-all-assistants.js",
     "check-phone-assistant": "node scripts/check-phone-assistant-full.js",
-    "fix-everything": "node scripts/fix-everything-now.js"
+    "fix-everything": "node scripts/fix-everything-now.js",
+    "test-tool-now": "node scripts/test-tool-call-now.js"
   },
   "keywords": [
     "vapi",
