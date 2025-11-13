@@ -11,6 +11,20 @@ class GHLClient {
       "Content-Type": "application/json",
       "Version": "2021-07-28"
     }
+    
+    // Add cache for availability checks (expires after 60 seconds)
+    this.availabilityCache = new Map()
+    this.CACHE_TTL = 60000 // 60 seconds
+  }
+  
+  // Helper: Get cache key for availability checks
+  getCacheKey(calendarId, startTime, endTime, timezone) {
+    return `${calendarId}:${startTime}:${endTime}:${timezone}`
+  }
+  
+  // Helper: Check if cache entry is valid
+  isCacheValid(cacheEntry) {
+    return cacheEntry && (Date.now() - cacheEntry.timestamp < this.CACHE_TTL)
   }
 
   // Create or update contact
@@ -145,6 +159,15 @@ class GHLClient {
   // Check calendar availability for a specific time slot
   async checkCalendarAvailability(calendarId, startTime, endTime, timezone = "Europe/London") {
     try {
+      // Check cache first
+      const cacheKey = this.getCacheKey(calendarId, startTime, endTime, timezone)
+      const cachedResult = this.availabilityCache.get(cacheKey)
+      
+      if (this.isCacheValid(cachedResult)) {
+        console.log("✅ Using cached calendar availability (fresh data)")
+        return cachedResult.data
+      }
+      
       const headers = {
         ...this.headers,
         "Version": "2021-07-28"
@@ -167,6 +190,7 @@ class GHLClient {
       console.log(`   End: ${endDate.toISOString()}`)
       console.log(`   Timezone: ${timezone}`)
       
+      // ⚡ CRITICAL: Add 3-second timeout to prevent Vapi timeouts
       const response = await axios.get(
         `https://services.leadconnectorhq.com/calendars/${calendarId}/free-slots`,
         {
@@ -175,7 +199,8 @@ class GHLClient {
             startDate: startTimestamp,
             endDate: endTimestamp,
             timezone: timezone
-          }
+          },
+          timeout: 3000 // 3 seconds max
         }
       )
 
@@ -196,11 +221,31 @@ class GHLClient {
       }
       
       // Return normalized structure
-      return {
+      const result = {
         slots: allSlots,
         rawData: response.data
       }
+      
+      // Cache the result for 60 seconds
+      this.availabilityCache.set(cacheKey, {
+        data: result,
+        timestamp: Date.now()
+      })
+      
+      // Clean up old cache entries (keep cache size manageable)
+      if (this.availabilityCache.size > 50) {
+        const oldestKey = this.availabilityCache.keys().next().value
+        this.availabilityCache.delete(oldestKey)
+      }
+      
+      return result
     } catch (error) {
+      // Handle timeout specifically
+      if (error.code === 'ECONNABORTED') {
+        console.error("⏱️ GHL API timeout (>3s) - Responding with generic message")
+        throw new Error("Calendar check is taking too long. Please try again.")
+      }
+      
       console.error(
         "❌ Error checking calendar availability:",
         error.response?.data || error.message
@@ -240,7 +285,10 @@ class GHLClient {
       const response = await axios.post(
         `https://services.leadconnectorhq.com/calendars/events/appointments`,
         appointmentData,
-        { headers }
+        { 
+          headers,
+          timeout: 4000 // 4 seconds max
+        }
       )
       
       console.log("✅ Calendar appointment created successfully!")
