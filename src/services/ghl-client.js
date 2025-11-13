@@ -190,7 +190,8 @@ class GHLClient {
       console.log(`   End: ${endDate.toISOString()}`)
       console.log(`   Timezone: ${timezone}`)
       
-      // ⚡ CRITICAL: Add 3-second timeout to prevent Vapi timeouts
+      // ⚡ CRITICAL: 2-second timeout to ensure we respond before Vapi's ~3s hard limit
+      // With the optimized 4-hour query window, GHL should respond in ~400-800ms
       const response = await axios.get(
         `https://services.leadconnectorhq.com/calendars/${calendarId}/free-slots`,
         {
@@ -200,7 +201,7 @@ class GHLClient {
             endDate: endTimestamp,
             timezone: timezone
           },
-          timeout: 3000 // 3 seconds max
+          timeout: 2000 // 2 seconds max (gives 1s buffer for network latency)
         }
       )
 
@@ -242,8 +243,8 @@ class GHLClient {
     } catch (error) {
       // Handle timeout specifically
       if (error.code === 'ECONNABORTED') {
-        console.error("⏱️ GHL API timeout (>3s) - Responding with generic message")
-        throw new Error("Calendar check is taking too long. Please try again.")
+        console.error("⏱️ GHL API timeout (>2s) - Responding with fallback message")
+        throw new Error("I'm having a bit of trouble checking our calendar right now. Would you like me to have someone call you back to schedule?")
       }
       
       console.error(
