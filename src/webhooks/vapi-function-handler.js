@@ -93,7 +93,7 @@ class VapiFunctionHandler {
             result = await this.updateAppointmentConfirmation(parameters);
             break;
 
-          case "cancel_appointment":
+          case "cancel_appointment_keey":
             result = await this.cancelAppointment(parameters);
             break;
 
