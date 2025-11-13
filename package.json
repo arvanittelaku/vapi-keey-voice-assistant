@@ -52,7 +52,15 @@
     "test-live-call": "node scripts/test-live-call-tools.js",
     "wake-server": "node scripts/wake-up-server.js",
     "test-exact-format": "node scripts/test-exact-vapi-format.js",
-    "diagnose-speed": "node scripts/diagnose-server-speed.js"
+    "diagnose-speed": "node scripts/diagnose-server-speed.js",
+    "check-tool-config": "node scripts/check-vapi-tool-config.js",
+    "check-squad-tools": "node scripts/check-squad-tools.js",
+    "verify-assistant-tools": "node scripts/verify-assistant-tools.js",
+    "diagnose-tool-url": "node scripts/diagnose-vapi-tool-url.js",
+    "test-direct-assistant": "node scripts/test-direct-assistant-call.js",
+    "fix-squad-server": "node scripts/fix-squad-server-url.js",
+    "check-server-messages": "node scripts/check-assistant-server-messages.js",
+    "fix-server-messages": "node scripts/fix-server-messages.js"
   },
   "keywords": [
     "vapi",
