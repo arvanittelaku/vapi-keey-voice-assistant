@@ -86,7 +86,8 @@ class VapiFunctionHandler {
             break;
 
           case "book_calendar_appointment_keey":
-            result = await this.bookCalendarAppointment(parameters);
+            // Pass the full message so we can extract contactId from variableValues
+            result = await this.bookCalendarAppointment(parameters, message);
             break;
 
           case "update_appointment_confirmation":
@@ -337,7 +338,7 @@ class VapiFunctionHandler {
     }
   }
 
-  async bookCalendarAppointment(params) {
+  async bookCalendarAppointment(params, message = null) {
     try {
       const {
         email,
@@ -347,7 +348,7 @@ class VapiFunctionHandler {
         bookingDate,
         bookingTime,
         startTime,
-        contactId,
+        contactId: paramsContactId,
         appointmentTitle,
         calendarId,
       } = params;
@@ -358,6 +359,18 @@ class VapiFunctionHandler {
       const targetCalendarId = calendarId || process.env.GHL_CALENDAR_ID;
       if (!targetCalendarId) {
         throw new Error("GHL_CALENDAR_ID not configured");
+      }
+
+      // Extract contactId from message variableValues if not in params (for outbound calls)
+      let contactId = paramsContactId;
+      if (!contactId && message?.artifact?.assistant?.variableValues?.contactId) {
+        contactId = message.artifact.assistant.variableValues.contactId;
+        console.log(`   📋 Using contactId from call metadata: ${contactId}`);
+      }
+
+      // Validate we have a contactId
+      if (!contactId) {
+        throw new Error("Invalid contact details - contactId is required but not provided");
       }
 
       const tz = timezone || "Europe/London";

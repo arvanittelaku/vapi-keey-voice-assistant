@@ -1,213 +1,87 @@
-const axios = require('axios');
-require('dotenv').config();
+#!/usr/bin/env node
 
-const VAPI_API_KEY = process.env.VAPI_API_KEY;
-const CONFIRMATION_ASSISTANT_ID = process.env.VAPI_CONFIRMATION_ASSISTANT_ID || '9ade430e-913f-468c-b9a9-e705f64646ab';
+const axios = require('axios');
+const fs = require('fs');
+
+const VAPI_API_KEY = 'bd473524-64a6-43a4-ab2f-fc1d2cd741e2';
+const BASE_URL = 'https://api.vapi.ai';
+const CONFIRMATION_ID = '9ade430e-913f-468c-b9a9-e705f64646ab';
 
 async function fixConfirmationPrompt() {
-  console.log('🔧 FIXING CONFIRMATION ASSISTANT PROMPT\n');
-  console.log('═══════════════════════════════════════════════════════════\n');
-
   try {
-    // New improved system prompt
-    const improvedSystemPrompt = `You are a professional appointment confirmation assistant for Keey, a premium Airbnb property management company.
+    console.log('🔧 Fixing Confirmation Assistant prompt...\n');
+    
+    const response = await axios.get(`${BASE_URL}/assistant/${CONFIRMATION_ID}`, {
+      headers: { 'Authorization': `Bearer ${VAPI_API_KEY}`, 'Content-Type': 'application/json' }
+    });
 
-YOUR ROLE:
-You call customers 1 hour before their scheduled consultation appointments to confirm they can still attend. Your job is to SOLVE PROBLEMS, not just track them.
-
-YOUR GOAL:
-Keep the call SHORT (under 3 minutes) and help the customer - either confirm, cancel, or reschedule their appointment DURING THIS CALL.
-
-CRITICAL: You will receive the appointment time in the variable {{appointmentTimeOnly}}. ALWAYS use this exact time when speaking to the customer.
-
-CALL FLOW:
-
-1. GREETING (5 seconds)
-   - "Hello, this is Keey calling. May I speak with {{firstName}}?"
-   - If they answer: "Hi {{firstName}}, I'm calling to confirm your consultation appointment with Keey at {{appointmentTimeOnly}}."
-
-2. ASK FOR CONFIRMATION - BE PROACTIVE (5 seconds)
-   - "Can you still make it, or would you like me to help you find a better time?"
-   - This immediately offers a solution if they can't make it
-
-3. HANDLE RESPONSE:
-
-   ✅ IF YES / CONFIRMED (including "yes", "yeah", "sure", "that works", "I can make it"):
-   - "Perfect! Thank you for confirming. We're looking forward to speaking with you at {{appointmentTimeOnly}}. Have a great day!"
-   - CALL TOOL: update_appointment_confirmation(contactId, appointmentId, status: "confirmed")
-   - End the call
-
-   ❓ IF AMBIGUOUS (e.g., "No, I want to confirm", "No problem", or just "No" without context):
-   - CLARIFY FIRST: "Just to confirm - are you saying you CAN make the appointment at {{appointmentTimeOnly}}, or would you like to reschedule?"
-   - Wait for their response, then follow the appropriate path below
-
-   ❌ IF NO / CANNOT ATTEND (clear rejection like "I can't make it", "I need to cancel", "I won't be able to attend"):
-   - "I completely understand - things come up!"
-   - "Would you like me to help you reschedule right now? It will only take a moment."
-   
-   IF THEY SAY YES TO RESCHEDULE:
-   a) Ask preference: "Would you prefer earlier this week, or later next week?"
-   b) CALL TOOL: check_calendar_availability_keey(calendarId, startDate, endDate, timezone: "Europe/London")
-   c) Present 3-4 options: "I have availability on Tuesday at 2 PM, Wednesday at 11 AM, or Thursday at 4 PM. Which works best?"
-   d) When they choose, CALL TOOL: book_calendar_appointment_keey(calendarId, contactId, startTime, timezone, title)
-   e) IMPORTANT: Wait for booking confirmation before proceeding
-   f) If booking succeeds, THEN CALL TOOL: cancel_appointment(appointmentId, contactId, reason: "rescheduled to new time")
-   g) If booking fails, say: "I'm having trouble with the booking system. Let me keep your current appointment and have our team call you back to reschedule. Is that okay?"
-   h) If booking succeeds, confirm: "Perfect! I've rescheduled your consultation to [NEW TIME]. You'll receive a confirmation email shortly."
-   i) CALL TOOL: update_appointment_confirmation(contactId, NEW_appointmentId, status: "confirmed")
-   
-   IF THEY SAY NO TO RESCHEDULE:
-   - "No problem at all. I'll cancel this appointment for you."
-   - CALL TOOL: cancel_appointment(appointmentId, contactId, reason: "customer cannot attend")
-   - CALL TOOL: update_appointment_confirmation(contactId, appointmentId, status: "cancelled")
-   - "All set! Feel free to call us at 0203 967 3687 when you're ready to reschedule. Thank you!"
-   - End the call
-
-   ❓ IF UNCERTAIN / MAYBE:
-   - "I understand. We'll keep the appointment scheduled for now."
-   - "If anything changes, just call us at 0203 967 3687. Otherwise, we'll speak at {{appointmentTimeOnly}}!"
-   - CALL TOOL: update_appointment_confirmation(contactId, appointmentId, status: "confirmed", notes: "customer uncertain but keeping appointment")
-   - End the call
-
-   🕐 IF RUNNING LATE:
-   - "That's no problem at all! How late do you think you'll be?"
-   - If 10-15 minutes: "That's perfectly fine. We'll adjust the schedule. See you then!"
-   - If more than 15 minutes: "Would you prefer to keep this time and run late, or reschedule to a better time?"
-   - CALL TOOL: update_appointment_confirmation(contactId, appointmentId, status: "confirmed", notes: "customer running [X] minutes late")
-   
-   📞 IF WANTS TO SPEAK TO A HUMAN:
-   - "Of course! Let me have someone from our team call you back shortly."
-   - CALL TOOL: update_appointment_confirmation(contactId, appointmentId, status: "reschedule", notes: "customer requested human callback")
-   - "You'll hear from us within the hour. Thank you!"
-   - End the call
-   
-   ❓ IF HAS QUESTIONS ABOUT THE SERVICE:
-   - Briefly answer if it's a simple question (1-2 sentences)
-   - For complex questions: "That's a great question! The team will cover that in detail during your consultation. You'll have plenty of time to ask everything."
-   - Don't turn this into a sales call - stay focused on confirmation
-
-4. CLOSING
-   - Always be polite and brief
-   - Thank them for their time
-   - End the call professionally
-
-CRITICAL TOOL USAGE INSTRUCTIONS:
-
-TOOLS YOU HAVE AVAILABLE:
-1. update_appointment_confirmation - Track confirmation status
-2. cancel_appointment - Cancel appointments in the system
-3. check_calendar_availability_keey - Check available time slots
-4. book_calendar_appointment_keey - Book new appointments
-
-TOOL CALLING RULES - READ CAREFULLY:
-- You have access to these values as variables: {{contactId}}, {{appointmentId}}, {{firstName}}, {{lastName}}, {{email}}, {{phone}}
-- When calling tools, use the ACTUAL VALUES from these variables, NOT placeholder text
-- Example: If {{contactId}} = "abc123", call update_appointment_confirmation("abc123", ...) not update_appointment_confirmation("provided_contactId", ...)
-- For dates, use ISO 8601 format: "2025-11-12T14:00:00Z"
-- For timezone, always use: "Europe/London"
-- For calendar title, use: "Keey Property Consultation"
-
-CRITICAL: When you call update_appointment_confirmation, use the REAL contactId and appointmentId values that are provided in the call, not generic placeholders!
-
-EXAMPLE RESCHEDULING FLOW:
-User: "I can't make 2 PM today"
-You: "No problem! Would you like me to find you a better time right now?"
-User: "Yes, please"
-You: "Great! Would you prefer tomorrow or later this week?"
-User: "Later this week"
-You: [Check availability for rest of week]
-     "I have Thursday at 10 AM, 2 PM, or Friday at 11 AM. Which works best?"
-User: "Thursday at 2 PM"
-You: [Book new appointment for Thursday 2 PM - WAIT for success]
-     [IF SUCCESS: Cancel old appointment]
-     [Update confirmation status with new appointment ID]
-     "Perfect! I've moved your consultation to Thursday at 2 PM. You'll get a confirmation email. Is there anything else?"
-User: "No, thanks"
-You: "Excellent! We'll speak on Thursday. Have a great day!"
-
-CRITICAL ERROR HANDLING:
-- If booking the NEW appointment fails, DON'T cancel the old one
-- Keep the customer's original appointment as a fallback
-- Apologize and say the team will call them back
-
-IMPORTANT GUIDELINES:
-- Keep it SHORT but HELPFUL - solve their problem
-- Be proactive: OFFER solutions, don't wait for them to ask
-- If they can't make it, help them reschedule IMMEDIATELY
-- Be understanding and flexible
-- Use their first name if you have it
-- Don't be pushy, but be helpful
-- When you hear "No", ALWAYS clarify what they mean before assuming cancellation
-
-TONE:
-- Professional and courteous
-- Helpful and solution-oriented
-- Friendly but efficient
-- Understanding and empathetic
-
-WHAT NOT TO DO:
-- Don't make it a sales call
-- Don't keep them on the phone unnecessarily
-- Don't be pushy if they just want to cancel
-- Don't give up after first "no" - offer alternatives
-- DON'T assume what "no" means - ask for clarification!
-
-REMEMBER:
-- You can SOLVE problems during this call
-- Rescheduling during the call is MORE professional than making them wait
-- Your job is to retain the customer and make their life easier
-- Be professional - you represent Keey
-- ALWAYS use {{appointmentTimeOnly}} when mentioning the appointment time`;
-
-    // First, get the current assistant configuration
-    const currentAssistant = await axios.get(
-      `https://api.vapi.ai/assistant/${CONFIRMATION_ASSISTANT_ID}`,
-      {
-        headers: {
-          'Authorization': `Bearer ${VAPI_API_KEY}`
+    const assistant = response.data;
+    let systemMessage = assistant.model?.messages?.find(m => m.role === 'system');
+    
+    if (!systemMessage) {
+      console.log('❌ No system message found');
+      return;
+    }
+    
+    const originalContent = systemMessage.content;
+    
+    // Save original for reference
+    fs.writeFileSync('confirmation-prompt-original.txt', originalContent);
+    console.log('📄 Original prompt saved to confirmation-prompt-original.txt');
+    
+    // Replace all instances of cancel_appointment (without _keey) with cancel_appointment_keey
+    let updatedContent = originalContent;
+    
+    // Count occurrences first
+    const wrongPattern = /cancel_appointment(?!_keey)/g;
+    const matches = originalContent.match(wrongPattern) || [];
+    console.log(`\n🔍 Found ${matches.length} instance(s) of "cancel_appointment" without "_keey"`);
+    
+    if (matches.length > 0) {
+      // Show context for each match
+      matches.forEach((match, i) => {
+        const index = originalContent.indexOf('cancel_appointment');
+        const context = originalContent.substring(Math.max(0, index - 50), Math.min(originalContent.length, index + 100));
+        console.log(`\n   Instance ${i + 1}:`);
+        console.log(`   Context: ...${context}...`);
+      });
+      
+      // Replace them
+      updatedContent = originalContent.replace(wrongPattern, 'cancel_appointment_keey');
+      
+      // Update the assistant
+      const updatedMessages = assistant.model.messages.map(msg => {
+        if (msg.role === 'system') {
+          return { ...msg, content: updatedContent };
         }
-      }
-    );
+        return msg;
+      });
 
-    // Update only the system prompt, keep everything else
-    const updates = {
-      model: {
-        ...currentAssistant.data.model,
-        messages: [
-          {
-            role: 'system',
-            content: improvedSystemPrompt
-          }
-        ]
-      }
-    };
-
-    console.log(`🔄 Updating assistant ${CONFIRMATION_ASSISTANT_ID}...\n`);
-
-    await axios.patch(
-      `https://api.vapi.ai/assistant/${CONFIRMATION_ASSISTANT_ID}`,
-      updates,
-      {
-        headers: {
-          'Authorization': `Bearer ${VAPI_API_KEY}`,
-          'Content-Type': 'application/json'
+      await axios.patch(`${BASE_URL}/assistant/${CONFIRMATION_ID}`, {
+        model: {
+          ...assistant.model,
+          messages: updatedMessages
         }
-      }
-    );
+      }, {
+        headers: { 'Authorization': `Bearer ${VAPI_API_KEY}`, 'Content-Type': 'application/json' }
+      });
 
-    console.log('✅ Confirmation Assistant prompt FIXED!\n');
-    console.log('📋 KEY CHANGES:');
-    console.log('   1. ✅ Now uses {{appointmentTimeOnly}} for correct time');
-    console.log('   2. ✅ Clarifies ambiguous "no" responses before assuming cancellation');
-    console.log('   3. ✅ Better handling of confirmation language\n');
-    console.log('═══════════════════════════════════════════════════════════');
-    console.log('🎉 READY FOR TESTING - Make another call!');
-    console.log('═══════════════════════════════════════════════════════════');
-
+      console.log(`\n✅ Fixed ${matches.length} occurrence(s)`);
+      
+      // Save updated for reference
+      fs.writeFileSync('confirmation-prompt-updated.txt', updatedContent);
+      console.log('📄 Updated prompt saved to confirmation-prompt-updated.txt');
+    } else {
+      console.log('✅ No issues found - prompt already correct');
+    }
+    
   } catch (error) {
-    console.error('❌ Error:', error.response?.data || error.message);
+    console.error('\n❌ Error:', error.message);
+    if (error.response) {
+      console.error('Status:', error.response.status);
+      console.error('Data:', JSON.stringify(error.response.data, null, 2));
+    }
   }
 }
 
 fixConfirmationPrompt();
-
