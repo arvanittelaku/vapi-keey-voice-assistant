@@ -122,11 +122,14 @@ class GHLToVapiWebhook {
         try {
           // Try to parse with proper library
           const defaultCountry = region === 'Dubai' ? 'AE' : 'GB';
+          console.log(`   🔍 Parsing phone with libphonenumber (country: ${defaultCountry})`);
           const phoneNumber = parsePhoneNumber(phone, defaultCountry);
+          console.log(`   🔍 Parse result:`, phoneNumber ? `valid=${phoneNumber.isValid()}, national=${phoneNumber.nationalNumber}` : 'null');
           if (phoneNumber && phoneNumber.isValid()) {
             formattedPhone = phoneNumber.format('E.164');
-            console.log(`   📱 Phone formatted with libphonenumber: "${phone}" → "${formattedPhone}"`);
+            console.log(`   ✅ Phone formatted with libphonenumber: "${phone}" → "${formattedPhone}"`);
           } else {
+            console.log(`   ⚠️  libphonenumber validation failed, using manual formatting`);
             // Fallback to manual formatting
             formattedPhone = phone
               .replace(/\s/g, '')      // Remove spaces
