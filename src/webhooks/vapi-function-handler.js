@@ -49,77 +49,101 @@ class VapiFunctionHandler {
         }
 
         // Extract function info based on message type
-        let functionName, parameters, toolCallId;
+        let toolCalls = [];
         
         if (messageType === "tool-calls" || messageType === "tool_calls") {
-          // New format: extract from toolCalls array
-          const toolCall = message.toolCalls?.[0] || message.toolCallList?.[0];
-          if (!toolCall || !toolCall.function) {
-            console.log("⚠️  No tool call found in tool-calls message");
-            return res.json({ success: false, message: "No tool call found" });
+          // New format: extract ALL tool calls from array
+          toolCalls = message.toolCalls || message.toolCallList || [];
+          if (toolCalls.length === 0) {
+            console.log("⚠️  No tool calls found in tool-calls message");
+            return res.json({ success: false, message: "No tool calls found" });
           }
-          functionName = toolCall.function.name;
-          parameters = typeof toolCall.function.arguments === 'string' 
+          console.log(`📋 Processing ${toolCalls.length} tool call(s)`);
+        } else {
+          // Old format: single function call
+          const { functionCall } = message;
+          toolCalls = [{
+            function: {
+              name: functionCall.name,
+              arguments: functionCall.parameters
+            },
+            id: message.toolCallId
+          }];
+        }
+
+        // Process ALL tool calls and collect results
+        const results = [];
+        
+        for (const toolCall of toolCalls) {
+          if (!toolCall || !toolCall.function) {
+            console.log("⚠️  Invalid tool call, skipping");
+            continue;
+          }
+          
+          const functionName = toolCall.function.name;
+          const parameters = typeof toolCall.function.arguments === 'string' 
             ? JSON.parse(toolCall.function.arguments) 
             : toolCall.function.arguments;
-          toolCallId = toolCall.id; // Extract the correct toolCallId
-        } else {
-          // Old format: extract from functionCall
-          const { functionCall } = message;
-          functionName = functionCall.name;
-          parameters = functionCall.parameters;
-          toolCallId = message.toolCallId; // Old format uses message.toolCallId
-        }
+          const toolCallId = toolCall.id;
 
-        console.log(`🛠️  Function Called: ${functionName}`);
-        console.log("📋 Parameters:", parameters);
+          console.log(`\n🛠️  Function Called: ${functionName}`);
+          console.log("📋 Parameters:", parameters);
 
-        let result;
+          let result;
 
-        switch (functionName) {
-          case "contact_create_keey":
-            result = await this.createContact(parameters);
-            break;
+          try {
+            switch (functionName) {
+              case "contact_create_keey":
+                result = await this.createContact(parameters);
+                break;
 
-          case "check_calendar_availability_keey":
-            result = await this.checkCalendarAvailability(parameters);
-            break;
+              case "check_calendar_availability_keey":
+                result = await this.checkCalendarAvailability(parameters);
+                break;
 
-          case "book_calendar_appointment_keey":
-            // Pass the full message so we can extract contactId from variableValues
-            result = await this.bookCalendarAppointment(parameters, message);
-            break;
+              case "book_calendar_appointment_keey":
+                // Pass the full message so we can extract contactId from variableValues
+                result = await this.bookCalendarAppointment(parameters, message);
+                break;
 
-          case "update_appointment_confirmation":
-            result = await this.updateAppointmentConfirmation(parameters);
-            break;
+              case "update_appointment_confirmation":
+                result = await this.updateAppointmentConfirmation(parameters);
+                break;
 
-          case "cancel_appointment_keey":
-            result = await this.cancelAppointment(parameters);
-            break;
+              case "cancel_appointment_keey":
+                result = await this.cancelAppointment(parameters);
+                break;
 
-          default:
-            console.error(`❌ Unknown function: ${functionName}`);
-            result = {
-              success: false,
-              message: `Unknown function: ${functionName}`,
-            };
-        }
+              default:
+                console.error(`❌ Unknown function: ${functionName}`);
+                result = {
+                  success: false,
+                  message: `Unknown function: ${functionName}`,
+                };
+            }
 
-        console.log("✅ Function executed successfully");
-        console.log("📤 Result:", result);
-        console.log("🔑 Tool Call ID:", toolCallId);
+            console.log("✅ Function executed successfully");
+            console.log("📤 Result:", result);
+            console.log("🔑 Tool Call ID:", toolCallId);
 
-        // Send response with proper Vapi format
-        // Vapi expects: { results: [{ toolCallId, result }] }
-        // NOT: { results: [{ toolCallId, success, message, data }] }
-        const response = {
-          results: [
-            {
+            // Add result to results array
+            results.push({
               toolCallId: toolCallId,
               result: result.message || JSON.stringify(result), // Use message as the result string
-            },
-          ],
+            });
+          } catch (error) {
+            console.error(`❌ Error executing ${functionName}:`, error.message);
+            results.push({
+              toolCallId: toolCallId,
+              result: `Error: ${error.message}`,
+            });
+          }
+        }
+
+        // Send response with proper Vapi format for ALL tool calls
+        // Vapi expects: { results: [{ toolCallId, result }, ...] }
+        const response = {
+          results: results,
         };
 
         console.log("📨 Sending response to Vapi:", JSON.stringify(response, null, 2));
