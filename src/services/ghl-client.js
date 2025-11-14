@@ -284,8 +284,8 @@ class GHLClient {
       console.log(`   End: ${endDate.toISOString()}`)
       console.log(`   Timezone: ${timezone}`)
       
-      // ⚡ CRITICAL: 2-second timeout to ensure we respond before Vapi's ~3s hard limit
-      // With the optimized 4-hour query window, GHL should respond in ~400-800ms
+      // ⚡ CRITICAL: 5-second timeout for cache misses
+      // Note: With caching working, this should rarely be called during live calls
       const response = await axios.get(
         `https://services.leadconnectorhq.com/calendars/${calendarId}/free-slots`,
         {
@@ -295,7 +295,7 @@ class GHLClient {
             endDate: endTimestamp,
             timezone: timezone
           },
-          timeout: 2000 // 2 seconds max (gives 1s buffer for network latency)
+          timeout: 5000 // 5 seconds max (only for cache misses)
         }
       )
 
@@ -322,7 +322,9 @@ class GHLClient {
       }
       
       // ⚡ Cache the result for 5 minutes (for instant responses)
-      this.availabilityCache.set(cacheKey, {
+      // Use the full-day cache key so pre-fetch and live requests share the same cache
+      const cacheKeyForStorage = this.getCacheKey(calendarId, startTime, endTime, timezone)
+      this.availabilityCache.set(cacheKeyForStorage, {
         data: result,
         timestamp: Date.now()
       })
@@ -339,7 +341,7 @@ class GHLClient {
     } catch (error) {
       // Handle timeout specifically
       if (error.code === 'ECONNABORTED') {
-        console.error("⏱️ GHL API timeout (>2s) - Responding with fallback message")
+        console.error("⏱️ GHL API timeout (>5s) - Responding with fallback message")
         throw new Error("I'm having a bit of trouble checking our calendar right now. Would you like me to have someone call you back to schedule?")
       }
       
