@@ -247,11 +247,24 @@ class VapiFunctionHandler {
       // Parse the requested date and time
       const tz = timezone || "Europe/London";
       
+      console.log("[DEBUG] Raw input:", { requestedDate, requestedTime, timezone });
+      
       // Handle natural language dates (e.g., "tomorrow", "Monday", "November 15th")
       const parsedDate = this.parseNaturalDate(requestedDate, tz);
+      console.log("[DEBUG] parsedDate:", parsedDate.toString(), "isValid:", parsedDate.isValid);
       
       // Parse the requested time (e.g., "6 PM", "14:00")
       const parsedTime = this.parseNaturalTime(requestedTime, tz);
+      console.log("[DEBUG] parsedTime:", parsedTime.toString(), "isValid:", parsedTime.isValid);
+      
+      // 🔥 CRITICAL: Validate parsing results
+      if (!parsedDate || !parsedDate.isValid) {
+        throw new Error(`Failed to parse date: "${requestedDate}". Please use format like "today", "tomorrow", "Monday", or "November 15"`);
+      }
+      
+      if (!parsedTime || !parsedTime.isValid) {
+        throw new Error(`Failed to parse time: "${requestedTime}". Please use format like "2 PM", "14:00", or "3 o'clock"`);
+      }
       
       // ⚡ OPTIMIZATION: Query only a 4-hour window around requested time
       // This makes GHL API respond 10x faster (~400ms instead of 2.6 seconds)
@@ -261,6 +274,12 @@ class VapiFunctionHandler {
         second: 0,
         millisecond: 0
       });
+      
+      console.log("[DEBUG] requestedDateTime:", requestedDateTime.toString(), "isValid:", requestedDateTime.isValid);
+      
+      if (!requestedDateTime.isValid) {
+        throw new Error(`Failed to combine date and time. Date: "${requestedDate}", Time: "${requestedTime}"`);
+      }
       
       // Create window: 2 hours before to 2 hours after requested time
       const startTime = requestedDateTime.minus({ hours: 2 }).toISO();

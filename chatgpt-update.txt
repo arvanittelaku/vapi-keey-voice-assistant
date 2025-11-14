@@ -1,0 +1,284 @@
+==================================================
+UPDATE FOR CHATGPT - PROGRESS & NEW ISSUE
+==================================================
+
+## WHAT WE FIXED (Thanks to your help!)
+
+✅ **Response Format Issue - SOLVED**
+
+You correctly identified that we were using custom fields (success, message, data) in our response, which failed Vapi's schema validation.
+
+**OLD FORMAT (Failed):**
+```json
+{
+  "results": [{
+    "toolCallId": "...",
+    "success": true,
+    "message": "...",
+    "data": {...}
+  }]
+}
+```
+
+**NEW FORMAT (Working):**
+```json
+{
+  "results": [{
+    "toolCallId": "...",
+    "result": "response message"
+  }]
+}
+```
+
+**CODE CHANGE:**
+```javascript
+// src/webhooks/vapi-function-handler.js (line 115-122)
+const response = {
+  results: [{
+    toolCallId: toolCallId,
+    result: result.message || JSON.stringify(result)
+  }]
+};
+```
+
+==================================================
+## WHAT'S WORKING NOW
+==================================================
+
+✅ **update_appointment_confirmation tool - WORKS PERFECTLY**
+
+Test:
+```json
+{
+  "message": {
+    "type": "tool-calls",
+    "toolCallList": [{
+      "id": "test_call_456",
+      "function": {
+        "name": "update_appointment_confirmation",
+        "arguments": {
+          "contactId": "ZtrIOxo50WVcsLbWK961",
+          "appointmentId": "test-appt-001",
+          "status": "confirmed",
+          "notes": "Customer confirmed via test"
+        }
+      }
+    }]
+  }
+}
+```
+
+Response (SUCCESS):
+```json
+{
+  "results": [{
+    "toolCallId": "test_call_456",
+    "result": "Thank you for confirming! We look forward to speaking with you at your scheduled time."
+  }]
+}
+```
+
+This proves the format fix is working!
+
+==================================================
+## WHAT'S STILL FAILING
+==================================================
+
+❌ **check_calendar_availability_keey tool - RETURNS ERROR**
+
+Test 1 (with "today"):
+```json
+{
+  "message": {
+    "type": "tool-calls",
+    "toolCallList": [{
+      "id": "test_call_123",
+      "function": {
+        "name": "check_calendar_availability_keey",
+        "arguments": {
+          "requestedDate": "today",
+          "requestedTime": "2 PM",
+          "timezone": "Europe/London"
+        }
+      }
+    }]
+  }
+}
+```
+
+Test 2 (with explicit date):
+```json
+{
+  "message": {
+    "type": "tool-calls",
+    "toolCallList": [{
+      "id": "explicit_test_123",
+      "function": {
+        "name": "check_calendar_availability_keey",
+        "arguments": {
+          "requestedDate": "November 15",
+          "requestedTime": "14:00",
+          "timezone": "Europe/London"
+        }
+      }
+    }]
+  }
+}
+```
+
+**BOTH TESTS RETURN:**
+```json
+{
+  "results": [{
+    "toolCallId": "...",
+    "result": "I apologize, but I'm having trouble checking our calendar right now. Could you please try again or call us directly at 0203 967 3687?"
+  }]
+}
+```
+
+This is our error message from the catch block, meaning an exception is being thrown.
+
+==================================================
+## WHAT WE KNOW
+==================================================
+
+✅ **Server is deployed and running** (responds to health checks)
+✅ **Response format is correct** (proven by update tool working)
+✅ **Environment variables are set:**
+   - GHL_API_KEY (valid - booking worked before)
+   - GHL_LOCATION_ID (set correctly)
+   - GHL_CALENDAR_ID = "fxuTx3pBbcUUBW2zMhSN"
+
+✅ **API permissions are correct:**
+   - Same API key that worked for booking appointments
+   - No changes to permissions
+   - Should have calendar access
+
+✅ **Both date formats fail:**
+   - Natural language ("today", "2 PM") - fails
+   - Explicit format ("November 15", "14:00") - fails
+
+==================================================
+## WHAT WE DON'T KNOW
+==================================================
+
+❓ **What is the actual error being thrown?**
+
+The function has a try-catch block that returns the generic error message:
+
+```javascript
+// src/webhooks/vapi-function-handler.js (line 310-318)
+catch (error) {
+  console.error("❌ Error checking calendar availability:", error.message);
+  return {
+    success: false,
+    message: "I apologize, but I'm having trouble checking our calendar right now..."
+  };
+}
+```
+
+The error is logged to console, but we don't have access to the Render logs right now.
+
+==================================================
+## THE FUNCTION LOGIC
+==================================================
+
+```javascript
+async checkCalendarAvailability(params) {
+  try {
+    const { requestedDate, requestedTime, timezone } = params;
+    
+    // 1. Get calendar ID from environment
+    const calendarId = process.env.GHL_CALENDAR_ID;
+    if (!calendarId) {
+      throw new Error("GHL_CALENDAR_ID not configured");
+    }
+    
+    // 2. Parse natural language date/time using Luxon
+    const tz = timezone || "Europe/London";
+    const parsedDate = this.parseNaturalDate(requestedDate, tz);
+    const parsedTime = this.parseNaturalTime(requestedTime, tz);
+    
+    // 3. Create 4-hour time window
+    const requestedDateTime = parsedDate.set({
+      hour: parsedTime.hour,
+      minute: parsedTime.minute,
+      second: 0,
+      millisecond: 0
+    });
+    
+    const startTime = requestedDateTime.minus({ hours: 2 }).toISO();
+    const endTime = requestedDateTime.plus({ hours: 2 }).toISO();
+    
+    // 4. Call GHL API
+    const availability = await this.ghlClient.checkCalendarAvailability(
+      calendarId,
+      startTime,
+      endTime,
+      tz
+    );
+    
+    // 5. Format and return slots
+    // ... (formatting code)
+    
+  } catch (error) {
+    // Returns generic error message
+    return { success: false, message: "..." };
+  }
+}
+```
+
+==================================================
+## POSSIBLE CAUSES
+==================================================
+
+1. **Date/Time Parsing Failure:**
+   - parseNaturalDate() or parseNaturalTime() throwing error
+   - Luxon DateTime returning invalid date
+   - toISO() failing
+
+2. **GHL API Call Failure:**
+   - Calendar ID invalid/not found
+   - API timeout (>2 seconds)
+   - API authentication issue
+   - Network error
+
+3. **Cache Issue:**
+   - Pre-fetch not initialized yet
+   - Cache lookup failing
+   - Cache key mismatch
+
+4. **Environment Variable Issue:**
+   - Calendar ID not loaded after redeploy
+   - Different calendar ID needed
+
+==================================================
+## WHAT WE NEED FROM YOU
+==================================================
+
+Can you analyze the function logic and help us identify:
+
+1. **Which step is most likely failing?**
+   - Date parsing?
+   - GHL API call?
+   - Something else?
+
+2. **What should we check/test next?**
+   - Should we test the date parsing separately?
+   - Should we bypass caching?
+   - Should we add more detailed error handling?
+
+3. **Is there anything in the function structure that looks problematic?**
+
+We've successfully fixed the response format issue thanks to you. Now we need help finding why the availability check is throwing an exception.
+
+==================================================
+## CODE REFERENCES
+==================================================
+
+**Main handler:** src/webhooks/vapi-function-handler.js (lines 233-319)
+**GHL Client:** src/services/ghl-client.js (lines 230-310)
+**Cache logic:** src/services/ghl-client.js (lines 15-98)
+
+The update tool uses similar structure but works fine, so it's something specific to the availability check.
+
