@@ -229,14 +229,35 @@ class GHLClient {
   // Check calendar availability for a specific time slot
   async checkCalendarAvailability(calendarId, startTime, endTime, timezone = "Europe/London") {
     try {
-      // ⚡ INSTANT CACHE CHECK - Return in <50ms if cached
-      const cacheKey = this.getCacheKey(calendarId, startTime, endTime, timezone)
-      const cachedResult = this.availabilityCache.get(cacheKey)
+      // ⚡ SMART CACHE LOOKUP - Check if we have full-day data cached
+      const requestStart = new Date(startTime)
+      const requestEnd = new Date(endTime)
       
-      if (this.isCacheValid(cachedResult)) {
-        const age = Math.round((Date.now() - cachedResult.timestamp) / 1000)
+      // Get start/end of the day for cache lookup
+      const dayStart = new Date(requestStart)
+      dayStart.setHours(0, 0, 0, 0)
+      
+      const dayEnd = new Date(requestStart)
+      dayEnd.setHours(23, 59, 59, 999)
+      
+      const fullDayCacheKey = this.getCacheKey(calendarId, dayStart.toISOString(), dayEnd.toISOString(), timezone)
+      const cachedFullDay = this.availabilityCache.get(fullDayCacheKey)
+      
+      if (this.isCacheValid(cachedFullDay)) {
+        // Filter cached slots to requested time window
+        const filteredSlots = cachedFullDay.data.slots.filter(slot => {
+          const slotTime = new Date(slot)
+          return slotTime >= requestStart && slotTime <= requestEnd
+        })
+        
+        const age = Math.round((Date.now() - cachedFullDay.timestamp) / 1000)
         console.log(`⚡ INSTANT CACHE HIT! (${age}s old) - Responding in <50ms`)
-        return cachedResult.data
+        console.log(`⚡ Filtered ${filteredSlots.length} slots from ${cachedFullDay.data.slots.length} total cached slots`)
+        
+        return {
+          slots: filteredSlots,
+          rawData: cachedFullDay.data.rawData
+        }
       }
       
       console.log("⚠️  Cache miss - Fetching live data from GHL...")
