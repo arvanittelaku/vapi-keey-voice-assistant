@@ -282,49 +282,94 @@ class VapiFunctionHandler {
         throw new Error(`Failed to combine date and time. Date: "${requestedDate}", Time: "${requestedTime}"`);
       }
       
-      // Create window: 2 hours before to 2 hours after requested time
-      const startTime = requestedDateTime.minus({ hours: 2 }).toISO();
-      const endTime = requestedDateTime.plus({ hours: 2 }).toISO();
-
-      console.log(`   Requested time: ${requestedDateTime.toFormat('h:mm a')}`)
-      console.log(`   Checking slots from ${startTime} to ${endTime}`);
-
-      const availability = await this.ghlClient.checkCalendarAvailability(
+      // First, check the exact requested time slot
+      const exactStartTime = requestedDateTime.toISO();
+      const exactEndTime = requestedDateTime.plus({ minutes: 30 }).toISO();
+      
+      console.log(`   🎯 Checking exact requested time: ${requestedDateTime.toFormat('h:mm a')}`);
+      
+      const exactAvailability = await this.ghlClient.checkCalendarAvailability(
         calendarId,
-        startTime,
-        endTime,
+        exactStartTime,
+        exactEndTime,
+        tz
+      );
+      
+      // If the exact time is available, return it immediately
+      if (exactAvailability.slots && exactAvailability.slots.length > 0) {
+        console.log("✅ Exact requested time is available!");
+        return {
+          success: true,
+          message: `Perfect! ${requestedDateTime.toFormat('h:mm a')} on ${parsedDate.toFormat('MMMM dd')} is available. Would you like me to book that for you?`,
+          data: {
+            exactMatch: true,
+            availableSlots: exactAvailability.slots,
+            requestedTime: requestedDateTime.toFormat('h:mm a'),
+          },
+        };
+      }
+      
+      console.log("❌ Exact requested time is NOT available");
+      console.log("🔍 Searching for alternative slots on the same day...");
+      
+      // If exact time not available, check the full day for alternatives
+      const dayStart = parsedDate.startOf('day').toISO();
+      const dayEnd = parsedDate.endOf('day').toISO();
+      
+      console.log(`   Checking full day from ${dayStart} to ${dayEnd}`);
+
+      const fullDayAvailability = await this.ghlClient.checkCalendarAvailability(
+        calendarId,
+        dayStart,
+        dayEnd,
         tz
       );
 
-      console.log(`✅ Found ${availability.slots?.length || 0} available slots`);
+      console.log(`✅ Found ${fullDayAvailability.slots?.length || 0} available slots for the full day`);
 
-      if (!availability.slots || availability.slots.length === 0) {
+      if (!fullDayAvailability.slots || fullDayAvailability.slots.length === 0) {
         return {
           success: true,
-          message: `I'm sorry, but we don't have any available slots on ${parsedDate.toFormat(
+          message: `I'm sorry, but ${requestedDateTime.toFormat('h:mm a')} is already booked, and we don't have any other available slots on ${parsedDate.toFormat(
             "MMMM dd, yyyy"
           )}. Would you like to try a different date?`,
-          data: { availableSlots: [] },
+          data: { availableSlots: [], exactMatch: false },
         };
       }
 
+      // Sort slots by proximity to requested time (closest first)
+      const slotsWithDistance = fullDayAvailability.slots.map((slot) => {
+        const slotTime = DateTime.fromISO(slot, { zone: tz });
+        const distanceMinutes = Math.abs(slotTime.diff(requestedDateTime, 'minutes').minutes);
+        return { slot, slotTime, distanceMinutes };
+      });
+      
+      slotsWithDistance.sort((a, b) => a.distanceMinutes - b.distanceMinutes);
+      
+      // Get the 3 closest slots
+      const closestSlots = slotsWithDistance.slice(0, 3);
+      
+      console.log("📋 Closest alternative slots:");
+      closestSlots.forEach((s, i) => {
+        console.log(`   ${i + 1}. ${s.slotTime.toFormat('h:mm a')} (${Math.round(s.distanceMinutes)} min away)`);
+      });
+      
       // Format slots for the AI to read naturally
-      const formattedSlots = availability.slots
-        .slice(0, 5)
-        .map((slot) => {
-          const time = DateTime.fromISO(slot, { zone: tz });
-          return time.toFormat("h:mm a");
-        })
+      const formattedSlots = closestSlots
+        .map((s) => s.slotTime.toFormat("h:mm a"))
         .join(", ");
 
       return {
         success: true,
-        message: `Great! On ${parsedDate.toFormat(
+        message: `I'm sorry, but ${requestedDateTime.toFormat('h:mm a')} on ${parsedDate.toFormat(
           "MMMM dd"
-        )}, we have availability at: ${formattedSlots}. Which time works best for you?`,
+        )} is already booked. However, I have these nearby times available on the same day: ${formattedSlots}. Would any of these work for you?`,
         data: {
-          availableSlots: availability.slots,
+          exactMatch: false,
+          requestedTime: requestedDateTime.toFormat('h:mm a'),
+          availableSlots: closestSlots.map(s => s.slot),
           displaySlots: formattedSlots,
+          closestSlot: closestSlots[0].slotTime.toFormat('h:mm a'),
         },
       };
     } catch (error) {
