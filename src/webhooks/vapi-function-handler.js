@@ -363,8 +363,8 @@ class VapiFunctionHandler {
 
       // Extract contactId from message variableValues if not in params (for outbound calls)
       let contactId = paramsContactId;
-      if (!contactId && message?.artifact?.assistant?.variableValues?.contactId) {
-        contactId = message.artifact.assistant.variableValues.contactId;
+      if (!contactId && message?.assistant?.variableValues?.contactId) {
+        contactId = message.assistant.variableValues.contactId;
         console.log(`   📋 Using contactId from call metadata: ${contactId}`);
       }
 
