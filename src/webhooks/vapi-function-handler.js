@@ -391,6 +391,15 @@ class VapiFunctionHandler {
         const parsedDate = this.parseNaturalDate(bookingDate, tz);
         const parsedTime = this.parseNaturalTime(bookingTime, tz);
         
+        // 🔥 CRITICAL: Validate parsing results
+        if (!parsedDate || !parsedDate.isValid) {
+          throw new Error(`Failed to parse date: "${bookingDate}". Please use format like "today", "tomorrow", "Monday", or "November 15"`);
+        }
+        
+        if (!parsedTime || !parsedTime.isValid) {
+          throw new Error(`Failed to parse time: "${bookingTime}". Please use format like "2 PM", "14:00", or "3 o'clock"`);
+        }
+        
         // Combine the date and time
         dateTime = parsedDate.set({
           hour: parsedTime.hour,
@@ -434,16 +443,16 @@ class VapiFunctionHandler {
       const dateFormatted = dateTime.toFormat("EEEE, MMMM dd"); // e.g., "Wednesday, November 12"
       const timeFormatted = dateTime.toFormat("h:mm a"); // e.g., "2:00 PM"
       
-      let message = `Perfect! I've scheduled your appointment for ${dateFormatted} at ${timeFormatted}.`;
+      let successMessage = `Perfect! I've scheduled your appointment for ${dateFormatted} at ${timeFormatted}.`;
       if (email) {
-        message += ` You'll receive a confirmation email shortly at ${email}.`;
+        successMessage += ` You'll receive a confirmation email shortly at ${email}.`;
       } else {
-        message += ` You'll receive a confirmation email shortly.`;
+        successMessage += ` You'll receive a confirmation email shortly.`;
       }
 
       return {
         success: true,
-        message: message,
+        message: successMessage,
         data: {
           appointmentId: appointment.id,
           startTime: appointmentStartTime,
