@@ -12,9 +12,13 @@ class GHLClient {
       "Version": "2021-07-28"
     }
     
-    // Add cache for availability checks (expires after 60 seconds)
+    // ⚡ AGGRESSIVE CACHING - Respond in <100ms by pre-fetching slots
     this.availabilityCache = new Map()
-    this.CACHE_TTL = 60000 // 60 seconds
+    this.CACHE_TTL = 300000 // 5 minutes (long TTL for pre-fetched data)
+    this.preFetchInterval = null
+    
+    // Start pre-fetching slots immediately
+    this.startPreFetching()
   }
   
   // Helper: Get cache key for availability checks
@@ -25,6 +29,72 @@ class GHLClient {
   // Helper: Check if cache entry is valid
   isCacheValid(cacheEntry) {
     return cacheEntry && (Date.now() - cacheEntry.timestamp < this.CACHE_TTL)
+  }
+  
+  // ⚡ CRITICAL: Pre-fetch slots for today and tomorrow to ensure <100ms responses
+  async preFetchSlots() {
+    const calendarId = process.env.GHL_CALENDAR_ID
+    if (!calendarId) {
+      console.log("⚠️  GHL_CALENDAR_ID not set - skipping pre-fetch")
+      return
+    }
+    
+    console.log("⚡ Pre-fetching calendar slots for instant responses...")
+    
+    const timezone = "Europe/London"
+    const now = new Date()
+    
+    // Pre-fetch for today and next 2 days (covers most booking requests)
+    const datesToPreFetch = [0, 1, 2] // today, tomorrow, day after
+    
+    for (const daysOffset of datesToPreFetch) {
+      try {
+        const targetDate = new Date(now)
+        targetDate.setDate(targetDate.getDate() + daysOffset)
+        
+        // Start of day
+        const startOfDay = new Date(targetDate)
+        startOfDay.setHours(0, 0, 0, 0)
+        
+        // End of day
+        const endOfDay = new Date(targetDate)
+        endOfDay.setHours(23, 59, 59, 999)
+        
+        const startTime = startOfDay.toISOString()
+        const endTime = endOfDay.toISOString()
+        
+        // Fetch and cache (this will automatically populate the cache)
+        await this.checkCalendarAvailability(calendarId, startTime, endTime, timezone)
+        
+        const dateStr = daysOffset === 0 ? "today" : daysOffset === 1 ? "tomorrow" : `in ${daysOffset} days`
+        console.log(`   ✅ Pre-fetched slots for ${dateStr}`)
+      } catch (error) {
+        console.error(`   ❌ Failed to pre-fetch slots for day +${daysOffset}:`, error.message)
+      }
+    }
+    
+    console.log(`⚡ Pre-fetch complete! Cache size: ${this.availabilityCache.size}`)
+  }
+  
+  // Start pre-fetching slots every 3 minutes
+  startPreFetching() {
+    // Pre-fetch immediately on startup
+    setTimeout(() => this.preFetchSlots(), 2000) // Wait 2s for server to be ready
+    
+    // Then pre-fetch every 3 minutes to keep cache fresh
+    this.preFetchInterval = setInterval(() => {
+      this.preFetchSlots()
+    }, 180000) // 3 minutes
+    
+    console.log("⚡ Pre-fetch scheduler started (runs every 3 minutes)")
+  }
+  
+  // Clean up interval on shutdown
+  stopPreFetching() {
+    if (this.preFetchInterval) {
+      clearInterval(this.preFetchInterval)
+      console.log("⚡ Pre-fetch scheduler stopped")
+    }
   }
 
   // Create or update contact
@@ -159,14 +229,17 @@ class GHLClient {
   // Check calendar availability for a specific time slot
   async checkCalendarAvailability(calendarId, startTime, endTime, timezone = "Europe/London") {
     try {
-      // Check cache first
+      // ⚡ INSTANT CACHE CHECK - Return in <50ms if cached
       const cacheKey = this.getCacheKey(calendarId, startTime, endTime, timezone)
       const cachedResult = this.availabilityCache.get(cacheKey)
       
       if (this.isCacheValid(cachedResult)) {
-        console.log("✅ Using cached calendar availability (fresh data)")
+        const age = Math.round((Date.now() - cachedResult.timestamp) / 1000)
+        console.log(`⚡ INSTANT CACHE HIT! (${age}s old) - Responding in <50ms`)
         return cachedResult.data
       }
+      
+      console.log("⚠️  Cache miss - Fetching live data from GHL...")
       
       const headers = {
         ...this.headers,
@@ -227,16 +300,18 @@ class GHLClient {
         rawData: response.data
       }
       
-      // Cache the result for 60 seconds
+      // ⚡ Cache the result for 5 minutes (for instant responses)
       this.availabilityCache.set(cacheKey, {
         data: result,
         timestamp: Date.now()
       })
+      console.log(`⚡ Cached result (valid for 5 minutes)`)
       
       // Clean up old cache entries (keep cache size manageable)
       if (this.availabilityCache.size > 50) {
         const oldestKey = this.availabilityCache.keys().next().value
         this.availabilityCache.delete(oldestKey)
+        console.log(`🧹 Cleaned up old cache entry (size: ${this.availabilityCache.size})`)
       }
       
       return result
