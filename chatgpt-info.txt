@@ -1,0 +1,206 @@
+===========================================
+FOR CHATGPT - VAPI TOOL ISSUE
+===========================================
+
+ISSUE: Tool works in Postman (628ms response), fails in live calls with "No result returned"
+
+===========================================
+1. TOOL SCHEMA (Defined in Vapi)
+===========================================
+
+Tool Name: check_calendar_availability_keey
+Tool ID: 22eb8501-80fb-497f-87e8-6f0a88ac5eab
+
+```json
+{
+  "type": "function",
+  "function": {
+    "name": "check_calendar_availability_keey",
+    "description": "Checks if a specific date and time is available on the calendar. Use this BEFORE booking to prevent double-bookings. The AI should ask for: 1) preferred date (e.g., 'Monday', 'tomorrow', 'next Friday', 'November 3rd'), 2) preferred time (e.g., '2 PM', '14:00', '3 o'clock'), and 3) timezone (e.g., 'Central Europe', 'EST', 'PST').",
+    "parameters": {
+      "type": "object",
+      "required": [
+        "requestedDate",
+        "requestedTime",
+        "timezone"
+      ],
+      "properties": {
+        "requestedDate": {
+          "type": "string",
+          "default": "",
+          "description": "The preferred date in natural language (e.g., 'Monday', 'tomorrow', 'next Friday', 'November 3rd')"
+        },
+        "requestedTime": {
+          "type": "string",
+          "default": "",
+          "description": "The preferred time (e.g., '2 PM', '14:00', '16 o'clock', '3:30 PM')"
+        },
+        "timezone": {
+          "type": "string",
+          "description": "User's timezone (e.g., 'Central Europe', 'America/New_York', 'EST', 'PST', 'Europe/London')"
+        }
+      }
+    }
+  },
+  "server": {
+    "url": "https://vapi-keey-voice-assistant.onrender.com/webhook/vapi",
+    "headers": {
+      "Authorization": "Bearer d8cde4628cf511b5cf14c7c106154e226ee7721ba5235319faeac5c2562988aa",
+      "ngrok-skip-browser-warning": "true"
+    },
+    "timeoutSeconds": 20
+  },
+  "messages": [
+    {
+      "type": "request-start",
+      "content": "",
+      "blocking": false
+    }
+  ]
+}
+```
+
+===========================================
+2. SERVER RESPONSE (What Our Endpoint Returns)
+===========================================
+
+Response Time: 628ms (during failed live call)
+HTTP Status: 200 OK
+Content-Type: application/json
+
+```json
+{
+  "results": [
+    {
+      "toolCallId": "call_GRYewxCWM26n6pWjleTW2rup",
+      "success": true,
+      "message": "Great! On November 14, we have availability at: 12:00 PM, 12:30 PM, 1:00 PM. Which time works best for you?",
+      "data": {
+        "availableSlots": [
+          "2025-11-14T12:00:00Z",
+          "2025-11-14T12:30:00Z",
+          "2025-11-14T13:00:00Z"
+        ],
+        "displaySlots": "12:00 PM, 12:30 PM, 1:00 PM"
+      }
+    }
+  ]
+}
+```
+
+===========================================
+3. REQUEST VAPI SENDS TO OUR SERVER
+===========================================
+
+```json
+{
+  "message": {
+    "timestamp": 1763113422184,
+    "type": "tool-calls",
+    "toolCalls": [
+      {
+        "id": "call_GRYewxCWM26n6pWjleTW2rup",
+        "type": "function",
+        "function": {
+          "name": "check_calendar_availability_keey",
+          "arguments": {
+            "requestedDate": "today",
+            "requestedTime": "12 PM",
+            "timezone": "Europe/London"
+          }
+        }
+      }
+    ]
+  },
+  "call": {
+    "id": "019a81bf-4184-766b-9530-40fdb6c6341e",
+    "type": "outboundPhoneCall"
+  }
+}
+```
+
+===========================================
+4. WHAT WORKS vs WHAT DOESN'T
+===========================================
+
+✅ WORKS IN POSTMAN:
+- Same endpoint URL
+- Same request format
+- Same response format
+- Response time: 400-800ms
+- Result: SUCCESS
+
+❌ FAILS IN LIVE VAPI CALL:
+- Same endpoint URL
+- Same request format
+- Same response format
+- Response time: 628ms
+- Result: "No result returned" error in Vapi logs
+
+===========================================
+5. SERVER LOGS (Proving it responded correctly)
+===========================================
+
+```
+⏰ 2025-11-14T09:43:42.258Z - Incoming webhook request
+📍 Method: POST
+🔔 VAPI FUNCTION CALL RECEIVED
+🛠️  Function Called: check_calendar_availability_keey
+📋 Parameters: {
+  "requestedDate": "today",
+  "requestedTime": "12 PM",
+  "timezone": "Europe/London"
+}
+
+📅 Checking calendar availability...
+✅ Calendar availability check successful
+📊 Found 3 free slots
+✅ Function executed successfully
+
+📨 Sending response to Vapi: {
+  "results": [{
+    "toolCallId": "call_GRYewxCWM26n6pWjleTW2rup",
+    "success": true,
+    "message": "Great! On November 14, we have availability at: 12:00 PM, 12:30 PM, 1:00 PM...",
+    "data": { ... }
+  }]
+}
+
+⏱️  Total processing time: 628ms
+```
+
+Response sent successfully with HTTP 200 - but Vapi shows "No result returned"
+
+===========================================
+6. ASSISTANT CONFIGURATION
+===========================================
+
+serverMessages enabled:
+```json
+"serverMessages": [
+  "status-update",
+  "tool-calls",
+  "function-call",
+  "end-of-call-report",
+  "hang"
+]
+```
+
+Tool is properly attached to assistant (Tool ID: 22eb8501-80fb-497f-87e8-6f0a88ac5eab)
+
+===========================================
+7. QUESTION FOR CHATGPT
+===========================================
+
+Why does this exact response work in Postman but fail during live Vapi calls with "No result returned"?
+
+The response format matches Vapi's documentation exactly:
+- Has "results" array ✅
+- Has matching "toolCallId" ✅
+- Returns HTTP 200 ✅
+- Valid JSON format ✅
+- No line breaks in strings ✅
+- Response time is 628ms (under the configured 20 second timeout) ✅
+
+What field is causing the mismatch? What needs to be changed?
+

@@ -109,12 +109,14 @@ class VapiFunctionHandler {
         console.log("📤 Result:", result);
         console.log("🔑 Tool Call ID:", toolCallId);
 
-        // Send response with proper toolCallId
+        // Send response with proper Vapi format
+        // Vapi expects: { results: [{ toolCallId, result }] }
+        // NOT: { results: [{ toolCallId, success, message, data }] }
         const response = {
           results: [
             {
-              ...result,
               toolCallId: toolCallId,
+              result: result.message || JSON.stringify(result), // Use message as the result string
             },
           ],
         };

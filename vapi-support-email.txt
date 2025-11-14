@@ -1,0 +1,210 @@
+Subject: Custom Tool Timeout Issue - Works in Postman but Fails in Live Calls
+
+Hi Vapi Support Team,
+
+We're experiencing a critical issue with our custom tool (`check_calendar_availability_keey`) that's causing it to fail during live voice calls, even though it works perfectly when tested via Postman.
+
+---
+
+## THE PROBLEM
+
+**Symptom:**
+During live calls, when the AI agent attempts to call our `check_calendar_availability_keey` tool, we receive this error in the call logs:
+
+```
+"No result returned for call_GRYewxCWM26n6pWjleTW2rup. If this is unexpected, see troubleshooting tips at https://docs.vapi.ai/tools/custom-tools-troubleshooting#no-result-returned-error."
+```
+
+The AI then says: "It seems there's an issue checking the availability..."
+
+**What's Confusing:**
+- ✅ The EXACT same tool works perfectly when tested via Postman (responds in 400-800ms)
+- ✅ Our server receives the request from Vapi during the live call
+- ✅ Our server processes the request successfully
+- ✅ Our server returns the correct response format with HTTP 200
+- ❌ But Vapi shows "No result returned" in the call logs
+
+---
+
+## TECHNICAL DETAILS
+
+**Tool Configuration:**
+- Tool Name: `check_calendar_availability_keey`
+- Server URL: `https://vapi-keey-voice-assistant.onrender.com/webhook/vapi`
+- Configured Timeout: `timeoutSeconds: 20` (set in tool configuration)
+- Tool Type: Function (makes HTTP request to GoHighLevel calendar API)
+
+**Response Format (Tested & Working in Postman):**
+```json
+{
+  "results": [{
+    "toolCallId": "call_GRYewxCWM26n6pWjleTW2rup",
+    "success": true,
+    "message": "Great! On November 14, we have availability at: 4:00 PM, 4:30 PM. Which time works best for you?",
+    "data": {
+      "availableSlots": ["2025-11-14T16:00:00Z", "2025-11-14T16:30:00Z"],
+      "displaySlots": "4:00 PM, 4:30 PM"
+    }
+  }]
+}
+```
+
+**Server Response Times (from our logs):**
+- Postman test: ~400-800ms (works ✅)
+- Live call test #1: 628ms (failed ❌ - "No result returned")
+- Live call test #2: 2,655ms (failed ❌ - "No result returned")
+
+**HTTP Status:** Always 200 OK
+
+**Response Headers:** `Content-Type: application/json`
+
+---
+
+## WHAT WE'VE VERIFIED
+
+✅ **Response format is correct:**
+   - Has `results` array
+   - Has matching `toolCallId`
+   - Returns valid JSON
+   - No line breaks in response strings
+
+✅ **HTTP status is correct:** Always 200 OK
+
+✅ **Server is accessible:** Vapi successfully reaches our webhook
+
+✅ **Tool is attached to assistant:** Confirmed in dashboard
+
+✅ **serverMessages configuration:** "tool-calls" is enabled
+
+✅ **Postman tests succeed:** Same endpoint, same format, same data
+
+---
+
+## OUR HYPOTHESIS
+
+Based on our testing, we believe there's an **undocumented hard timeout** for custom tool responses that's **shorter than the configured `timeoutSeconds: 20`**.
+
+**Evidence:**
+1. **628ms response failed** during live call (with "No result returned")
+2. **400-800ms response works** in Postman tests
+3. This suggests the actual timeout is around **800ms-1 second**, not 20 seconds
+4. The `timeoutSeconds: 20` in our tool configuration doesn't seem to apply to live calls
+
+**Question:** Is there a different timeout for live calls vs. API/Postman requests?
+
+---
+
+## LOGS FROM FAILED LIVE CALL
+
+**Vapi Call Logs:**
+```
+User: "Today at 12 PM"
+
+Check Calendar Availability Keey
+No result returned for call_GRYewxCWM26n6pWjleTW2rup.
+```
+
+**Our Server Logs (same call):**
+```
+⏰ 2025-11-14T09:43:42.258Z - Incoming webhook request
+📍 Method: POST
+🔔 VAPI FUNCTION CALL RECEIVED
+🛠️  Function Called: check_calendar_availability_keey
+📋 Parameters: {
+  "requestedDate": "today",
+  "requestedTime": "12 PM",
+  "timezone": "Europe/London"
+}
+
+📅 Checking calendar availability...
+   Requested time: 12:00 PM
+   Checking slots from 2025-11-14T10:00:00Z to 2025-11-14T14:00:00Z
+
+✅ Calendar availability check successful
+📊 Found 3 free slots
+✅ Function executed successfully
+📤 Result: {
+  "success": true,
+  "message": "Great! On November 14, we have availability at: 12:00 PM, 12:30 PM, 1:00 PM...",
+  "data": { ... }
+}
+
+📨 Sending response to Vapi: {
+  "results": [{
+    "toolCallId": "call_GRYewxCWM26n6pWjleTW2rup",
+    "success": true,
+    "message": "...",
+    "data": { ... }
+  }]
+}
+
+⏱️  Total processing time: 628ms
+```
+
+**What This Shows:**
+- Our server received the request ✅
+- Our server processed it successfully ✅
+- Our server responded with correct format ✅
+- Response time was 628ms (under 1 second)
+- But Vapi still showed "No result returned" ❌
+
+---
+
+## WHAT WE NEED FROM YOU
+
+**1. Clarification on Timeout Behavior:**
+   - What is the actual timeout for custom tool responses during live calls?
+   - Is it different from the `timeoutSeconds` we configure in the tool?
+   - Does network latency count toward the timeout? (Our 628ms response + network latency might exceed the limit)
+
+**2. Debugging Assistance:**
+   - Can you check your internal logs for Call ID: `019a81bf-4184-766b-9530-40fdb6c6341e`?
+   - Can you see if/when Vapi received our server's response?
+   - Is there any additional error information not shown in the call logs?
+
+**3. Best Practices:**
+   - What response time should we target for custom tools in production?
+   - Should we implement caching/pre-fetching to guarantee sub-100ms responses?
+   - Are there any other undocumented limitations we should know about?
+
+---
+
+## OUR TEMPORARY SOLUTION
+
+To work around this issue, we're implementing aggressive caching:
+- Pre-fetch calendar data every 3 minutes
+- Serve responses from cache in <50ms
+- This should work regardless of the actual timeout value
+
+**However**, we'd really appreciate understanding the root cause so we can build more reliable integrations in the future.
+
+---
+
+## ADDITIONAL CONTEXT
+
+**Call Details:**
+- Call ID: `019a81bf-4184-766b-9530-40fdb6c6341e`
+- Assistant ID: `0fd5652f-e68d-442f-8362-8f96f00c2b84`
+- Tool ID: `22eb8501-80fb-497f-87e8-6f0a88ac5eab`
+- Date/Time: November 14, 2025, 09:43 UTC
+
+**Tools We're Using:**
+1. `check_calendar_availability_keey` - Check available time slots (THIS ONE FAILS)
+2. `book_calendar_appointment_keey` - Book an appointment (works fine)
+3. `update_appointment_confirmation` - Update confirmation status (works fine)
+4. `cancel_appointment_keey` - Cancel appointments (works fine)
+
+Only the availability checking tool fails during live calls, even though it's the fastest one when tested via Postman.
+
+---
+
+Thank you for your help! This is a critical issue for our production deployment, and we're losing credits on failed calls while testing.
+
+We're available for a call/screen share if that would help debug this faster.
+
+Best regards,
+Keey Voice Assistant Team
+
+**Contact:** arvanit@keey.com
+**Dashboard:** https://dashboard.vapi.ai/
+**Server:** https://vapi-keey-voice-assistant.onrender.com
