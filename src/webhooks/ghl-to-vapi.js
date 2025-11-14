@@ -115,22 +115,47 @@ class GHLToVapiWebhook {
         // Initiate Vapi call
         console.log("\n📞 Initiating Vapi outbound call...")
         
-        // Ensure phone number is in E.164 format
-        let formattedPhone = phone
-          .replace(/\s/g, '')      // Remove spaces
-          .replace(/\(/g, '')      // Remove (
-          .replace(/\)/g, '')      // Remove )
-          .replace(/-/g, '')       // Remove dashes
-          .replace(/\./g, '');     // Remove dots
+        // Ensure phone number is in E.164 format using libphonenumber-js
+        const { parsePhoneNumber } = require('libphonenumber-js');
+        let formattedPhone = phone;
         
-        // If phone doesn't start with +, try to add country code
-        if (!formattedPhone.startsWith('+')) {
-          // Default to UK if not specified
-          const countryCode = region === 'Dubai' ? '+971' : '+44';
-          formattedPhone = countryCode + formattedPhone.replace(/^0+/, ''); // Remove leading zeros
+        try {
+          // Try to parse with proper library
+          const defaultCountry = region === 'Dubai' ? 'AE' : 'GB';
+          const phoneNumber = parsePhoneNumber(phone, defaultCountry);
+          if (phoneNumber && phoneNumber.isValid()) {
+            formattedPhone = phoneNumber.format('E.164');
+            console.log(`   📱 Phone formatted with libphonenumber: "${phone}" → "${formattedPhone}"`);
+          } else {
+            // Fallback to manual formatting
+            formattedPhone = phone
+              .replace(/\s/g, '')      // Remove spaces
+              .replace(/\(/g, '')      // Remove (
+              .replace(/\)/g, '')      // Remove )
+              .replace(/-/g, '')       // Remove dashes
+              .replace(/\./g, '');     // Remove dots
+            
+            if (!formattedPhone.startsWith('+')) {
+              const countryCode = region === 'Dubai' ? '+971' : '+44';
+              formattedPhone = countryCode + formattedPhone.replace(/^0+/, '');
+            }
+            console.log(`   📱 Phone formatted manually: "${phone}" → "${formattedPhone}"`);
+          }
+        } catch (e) {
+          // Fallback to manual formatting if parsing fails
+          formattedPhone = phone
+            .replace(/\s/g, '')
+            .replace(/\(/g, '')
+            .replace(/\)/g, '')
+            .replace(/-/g, '')
+            .replace(/\./g, '');
+          
+          if (!formattedPhone.startsWith('+')) {
+            const countryCode = region === 'Dubai' ? '+971' : '+44';
+            formattedPhone = countryCode + formattedPhone.replace(/^0+/, '');
+          }
+          console.log(`   📱 Phone formatted (fallback): "${phone}" → "${formattedPhone}"`);
         }
-        
-        console.log(`   📱 Phone formatting: "${phone}" → "${formattedPhone}"`);
 
         // Build call data based on call type
         const callData = {

@@ -154,9 +154,13 @@ class GHLClient {
         payload,
         { headers: this.headers }
       )
+      
+      // GHL returns the contact in response.data.contact
+      const contact = response.data.contact || response.data
+      
       console.log("✅ Contact created successfully in GHL")
-      console.log("   Contact ID:", response.data.contact?.id || response.data.id)
-      return response.data
+      console.log("   Contact ID:", contact.id)
+      return contact
     } catch (error) {
       console.error("❌ Error creating contact in GHL")
       console.error("   Status:", error.response?.status)
