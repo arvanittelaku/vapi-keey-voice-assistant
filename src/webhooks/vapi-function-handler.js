@@ -77,7 +77,7 @@ class VapiFunctionHandler {
         let result;
 
         switch (functionName) {
-          case "create_contact":
+          case "contact_create_keey":
             result = await this.createContact(parameters);
             break;
 
