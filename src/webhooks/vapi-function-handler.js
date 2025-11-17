@@ -921,13 +921,13 @@ class VapiFunctionHandler {
       
       console.log('   ✅ Confirmation call detected');
       
-      // Check if call was not answered
-      const noAnswerReasons = [
-        'voicemail',
-        'no-answer', 
-        'customer-did-not-answer',
-        'customer-ended-call'  // Sometimes voicemail detection ends as customer-ended
-      ];
+            // Check if call was not answered
+            const noAnswerReasons = [
+              'voicemail',
+              'no-answer',
+              'customer-did-not-answer'
+              // Note: 'customer-ended-call' removed - that means they ANSWERED and hung up normally
+            ];
       
       const wasNotAnswered = noAnswerReasons.includes(endedReason);
       
