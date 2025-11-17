@@ -1,4 +1,5 @@
 const GHLClient = require("../services/ghl-client");
+const SMSClient = require("../services/sms-client");
 const { parsePhoneNumber } = require("libphonenumber-js");
 const { DateTime } = require("luxon");
 
@@ -6,6 +7,7 @@ class VapiFunctionHandler {
   constructor(app) {
     this.app = app;
     this.ghlClient = new GHLClient();
+    this.smsClient = new SMSClient();
     this.setupRoutes();
   }
 
@@ -40,6 +42,20 @@ class VapiFunctionHandler {
 
         // Determine message type - Vapi uses "type" for some webhooks and "role" for others
         const messageType = message?.type || message?.role;
+
+        // Handle end-of-call-report for SMS fallback
+        if (messageType === "end-of-call-report") {
+          console.log("📊 End-of-call report received");
+          await this.handleEndOfCall(message);
+          return res.json({ success: true, message: "End-of-call report processed" });
+        }
+
+        // Handle status updates (not actionable, just log)
+        if (messageType === "status-update") {
+          console.log("⚠️  Not a function call, ignoring");
+          console.log(`   Message type/role: ${messageType}`);
+          return res.json({ success: true, message: "Status update received" });
+        }
 
         // Handle both "function-call" (old format) and "tool-calls"/"tool_calls" (new format)
         if (!message || (messageType !== "function-call" && messageType !== "tool-calls" && messageType !== "tool_calls")) {
@@ -171,7 +187,54 @@ class VapiFunctionHandler {
       }
     });
 
+    // Test endpoint for SMS sending
+    this.app.post("/webhook/test-sms", async (req, res) => {
+      try {
+        console.log("\n📱 TEST SMS REQUEST RECEIVED");
+        console.log("📦 Payload:", JSON.stringify(req.body, null, 2));
+        
+        const { phone, customerName, appointmentTime, message } = req.body;
+        
+        if (!phone) {
+          return res.status(400).json({
+            success: false,
+            error: 'Phone number is required'
+          });
+        }
+        
+        let result;
+        
+        if (message) {
+          // Custom message test
+          result = await this.smsClient.sendTestSMS(phone, message);
+        } else if (customerName && appointmentTime) {
+          // Confirmation reminder test
+          result = await this.smsClient.sendConfirmationReminder(
+            phone,
+            customerName,
+            appointmentTime
+          );
+        } else {
+          // Default test message
+          result = await this.smsClient.sendTestSMS(
+            phone,
+            'Test SMS from Keey Voice Assistant - Your system is working!'
+          );
+        }
+        
+        res.json(result);
+        
+      } catch (error) {
+        console.error('❌ Error in test SMS endpoint:', error.message);
+        res.status(500).json({
+          success: false,
+          error: error.message
+        });
+      }
+    });
+
     console.log("✅ Vapi function webhook registered at /webhook/vapi");
+    console.log("✅ SMS test endpoint registered at /webhook/test-sms");
   }
 
   async createContact(params) {
@@ -834,6 +897,113 @@ class VapiFunctionHandler {
     // Fallback: default to 2 PM
     console.warn(`⚠️  Could not parse time "${timeString}", defaulting to 2 PM`);
     return DateTime.now().setZone(timezone).set({ hour: 14, minute: 0, second: 0 });
+  }
+
+  /**
+   * Handle end-of-call report and send SMS fallback if needed
+   */
+  async handleEndOfCall(message) {
+    try {
+      const { endedReason, call, assistant } = message;
+      
+      console.log('\n📞 Call Ended Report:');
+      console.log(`   Reason: ${endedReason}`);
+      console.log(`   Call ID: ${call?.id}`);
+      
+      // Check if it's a confirmation call
+      const variableValues = assistant?.variableValues;
+      const isConfirmationCall = variableValues?.callType === 'confirmation';
+      
+      if (!isConfirmationCall) {
+        console.log('   ℹ️  Not a confirmation call, skipping SMS fallback');
+        return;
+      }
+      
+      console.log('   ✅ Confirmation call detected');
+      
+      // Check if call was not answered
+      const noAnswerReasons = [
+        'voicemail',
+        'no-answer', 
+        'customer-did-not-answer',
+        'customer-ended-call'  // Sometimes voicemail detection ends as customer-ended
+      ];
+      
+      const wasNotAnswered = noAnswerReasons.includes(endedReason);
+      
+      if (!wasNotAnswered) {
+        console.log(`   ℹ️  Call ended normally (${endedReason}), no SMS fallback needed`);
+        return;
+      }
+      
+      console.log(`   📱 Call not answered (${endedReason}) - Triggering SMS fallback`);
+      
+      // Extract data for SMS
+      const { 
+        firstName, 
+        appointmentTimeOnly, 
+        phone,
+        contactId,
+        appointmentId 
+      } = variableValues;
+      
+      if (!phone || !firstName || !appointmentTimeOnly) {
+        console.error('   ❌ Missing required data for SMS fallback');
+        console.error(`      Phone: ${phone}, Name: ${firstName}, Time: ${appointmentTimeOnly}`);
+        return;
+      }
+      
+      // Send SMS fallback
+      console.log(`\n📱 Sending SMS Fallback:`);
+      console.log(`   To: ${phone}`);
+      console.log(`   Customer: ${firstName}`);
+      console.log(`   Appointment: ${appointmentTimeOnly}`);
+      
+      const smsResult = await this.smsClient.sendConfirmationReminder(
+        phone,
+        firstName,
+        appointmentTimeOnly
+      );
+      
+      if (smsResult.success) {
+        console.log('✅ SMS fallback sent successfully!');
+        console.log(`   Message SID: ${smsResult.messageSid}`);
+        
+        // Update confirmation status to "no_answer" with SMS tracking
+        try {
+          await this.updateAppointmentConfirmation({
+            contactId,
+            appointmentId,
+            status: 'no_answer',
+            notes: `Call not answered (${endedReason}). SMS sent at ${smsResult.sentAt} - Message SID: ${smsResult.messageSid}`
+          });
+          
+          console.log('✅ Confirmation status updated to "no_answer" with SMS tracking');
+        } catch (updateError) {
+          console.error('⚠️  Error updating confirmation status:', updateError.message);
+          // Don't fail if status update fails - SMS was sent successfully
+        }
+        
+      } else {
+        console.error('❌ SMS fallback failed:', smsResult.error);
+        
+        // Still try to update status even if SMS failed
+        try {
+          await this.updateAppointmentConfirmation({
+            contactId,
+            appointmentId,
+            status: 'no_answer',
+            notes: `Call not answered (${endedReason}). SMS send failed: ${smsResult.error}`
+          });
+        } catch (updateError) {
+          console.error('⚠️  Error updating confirmation status:', updateError.message);
+        }
+      }
+      
+    } catch (error) {
+      console.error('❌ Error in handleEndOfCall:', error.message);
+      console.error(error.stack);
+    }
   }
 }
 
