@@ -32,16 +32,17 @@ async function triggerConfirmationCall() {
   try {
     const callPayload = {
       assistantId: CONFIRMATION_ASSISTANT_ID,
+      phoneNumberId: '03251648-7837-4e7f-a981-b2dfe4f88881', // Keey phone number
       customer: {
         number: phoneNumber,
       },
       // Pass metadata that the AI can use
-      assistant: {
+      assistantOverrides: {
         variableValues: {
           contactId: contactId,
           appointmentId: appointmentId,
           appointmentTime: appointmentTime,
-          calendarId: "iJzQRjIWP6Gg4qlj9vOT", // Keey calendar ID
+          appointmentTimeOnly: appointmentTime, // For AI to use in conversation
         }
       }
     };

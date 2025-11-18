@@ -1,16 +1,16 @@
-// Keey Appointment Confirmation Assistant Configuration
-// Responsible for: Calling customers 1 hour before appointments to confirm attendance
-module.exports = {
-  name: "Keey Appointment Confirmation Assistant",
-  
-  // Model configuration
-  model: {
-    provider: "openai",
-    model: "gpt-4o",
-    messages: [
-      {
-        role: "system",
-        content: `You are a professional appointment confirmation assistant for Keey, a premium Airbnb property management company.
+require('dotenv').config();
+const axios = require('axios');
+
+const VAPI_API_KEY = process.env.VAPI_PRIVATE_KEY || 'bd473524-64a6-43a4-ab2f-fc1d2cd741e2';
+const CONFIRMATION_ASSISTANT_ID = '9ade430e-913f-468c-b9a9-e705f64646ab';
+
+async function updateConfirmationPrompt() {
+  console.log('\n🔄 UPDATING CONFIRMATION ASSISTANT PROMPT\n');
+  console.log('═'.repeat(80));
+  console.log(`   Assistant ID: ${CONFIRMATION_ASSISTANT_ID}`);
+  console.log('═'.repeat(80));
+
+  const improvedPrompt = `You are a professional appointment confirmation assistant for Keey, a premium Airbnb property management company.
 
 YOUR ROLE:
 You call customers 1 hour before their scheduled consultation appointments to confirm they can still attend. Your job is to SOLVE PROBLEMS, not just track them.
@@ -185,76 +185,68 @@ REMEMBER:
 - You can SOLVE problems during this call
 - Rescheduling during the call is MORE professional than making them wait
 - Your job is to retain the customer and make their life easier
-- Be professional - you represent Keey`
+- Be professional - you represent Keey`;
+
+  try {
+    console.log('\n📤 Sending update to Vapi...\n');
+
+    const response = await axios.patch(
+      `https://api.vapi.ai/assistant/${CONFIRMATION_ASSISTANT_ID}`,
+      {
+        model: {
+          provider: "openai",
+          model: "gpt-4o",
+          messages: [
+            {
+              role: "system",
+              content: improvedPrompt
+            }
+          ]
+        }
+      },
+      {
+        headers: {
+          'Authorization': `Bearer ${VAPI_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
       }
-    ]
-  },
+    );
 
-  // Voice Settings - Same as other assistants for consistency
-  voice: {
-    provider: "openai",
-    voiceId: "alloy", // Professional, clear voice
-  },
+    console.log('✅ PROMPT UPDATED SUCCESSFULLY!\n');
+    console.log('📋 Key UX Improvements Added:\n');
+    console.log('   ✅ Date clarification when rescheduling across days');
+    console.log('   ✅ Complete final confirmation (old time → new time)');
+    console.log('   ✅ Safety question before ending ("Does [NEW TIME] work perfectly for you?")');
+    console.log('   ✅ Explicit handling of ambiguous dates ("today", "tomorrow")');
+    console.log('   ✅ Instructions to never cut off mid-sentence');
+    console.log('   ✅ Always mention email confirmation');
+    
+    console.log('\n🎯 WHAT CHANGED:\n');
+    console.log('   BEFORE: "Perfect. I\'ve successfully rescheduled your"');
+    console.log('   AFTER: "Perfect! I\'ve successfully rescheduled your consultation');
+    console.log('          FROM Wednesday, November 19 at 10:00 AM');
+    console.log('          TO Tuesday, November 18 at 10:30 AM.');
+    console.log('          You\'ll receive a confirmation email shortly with all the details.');
+    console.log('          Does Tuesday at 10:30 AM work perfectly for you?"\n');
+    
+    console.log('═'.repeat(80));
+    console.log('\n✅ Ready for testing! The assistant will now:\n');
+    console.log('   1. Always clarify ambiguous dates ("today" → "Tuesday, November 18")');
+    console.log('   2. Provide complete confirmations with both old and new times');
+    console.log('   3. Ask for final verbal confirmation before ending');
+    console.log('   4. Complete all sentences (no more cut-offs)');
+    console.log('   5. Mention email confirmation\n');
 
-  // Transcriber Settings
-  transcriber: {
-    provider: "deepgram",
-    model: "nova-2",
-    language: "en-GB", // British English for UK market
-  },
-
-  // Server messages
-  serverMessages: [
-    "end-of-call-report",
-    "status-update",
-    "hang",
-    "function-call"
-  ],
-
-  // Call Settings
-  maxDurationSeconds: 120, // 2 minutes max (safety limit for testing - increase to 300 for production)
-  endCallMessage: "Thank you! We look forward to speaking with you soon.",
-  recordingEnabled: true,
-  silenceTimeoutSeconds: 20,
-  responseDelaySeconds: 0.4,
-  llmRequestDelaySeconds: 0.1,
-  numWordsToInterruptAssistant: 2,
-  
-  // Background sound
-  backgroundSound: "off",
-  
-  // Backchannel settings
-  backchannelingEnabled: false,
-  
-  // Start speaking plan
-  startSpeakingPlan: {
-    waitSeconds: 0.5,
-    smartEndpointingEnabled: true,
-    transcriptionEndpointingPlan: {
-      onPunctuationSeconds: 0.1,
-      onNoPunctuationSeconds: 1.5,
-      onNumberSeconds: 0.5
+  } catch (error) {
+    console.error('\n❌ ERROR UPDATING PROMPT:\n');
+    if (error.response) {
+      console.error('   Status:', error.response.status);
+      console.error('   Error:', JSON.stringify(error.response.data, null, 2));
+    } else {
+      console.error('   Error:', error.message);
     }
-  },
-  
-  // Other settings
-  hipaaEnabled: false,
-  clientMessages: [
-    "transcript",
-    "hang",
-    "function-call",
-    "speech-update",
-    "metadata",
-    "conversation-update"
-  ],
-  
-  // NOTE: Tools must be added manually in Vapi Dashboard
-  // Required tools for this assistant:
-  // 1. update_appointment_confirmation - Track confirmation status
-  // 2. cancel_appointment - Cancel appointments when customer can't attend
-  // 3. check_calendar_availability_keey - Check available slots for rescheduling
-  // 4. book_calendar_appointment_keey - Book new appointments during the call
-  
-  serverUrlSecret: process.env.WEBHOOK_SECRET || undefined,
+  }
 }
+
+updateConfirmationPrompt();
 
