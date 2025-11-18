@@ -17,6 +17,20 @@ class GHLClient {
     this.CACHE_TTL = 300000 // 5 minutes (long TTL for pre-fetched data)
     this.preFetchInterval = null
     
+    // 🔧 SMART RETRY SYSTEM - Custom Field IDs
+    this.customFieldIds = {
+      call_status: "H4ljT5ithlkz1gCqteKy",
+      call_result: "rIO6txdzKqyut9dFhe0Y",
+      call_attempts: "kvVRkJ7Z8dlNNmjxhsn1",
+      last_call_time: "plOYTBEdNamRztHtKZp8",
+      next_call_scheduled: "N40V15DGTFoYUBIZccnI",
+      ended_reason: "wp1181BVenOt6RrFKnRv",
+      call_duration: "jIitjRnh5t75VOpqlfrJ",
+      sms_sent: "QaSXTTINPnJWdDzqmetb",
+      sms_sent_at: "geklh2ISNn5BF0VPcEVI",
+      vapi_call_id: "kh2RptWX7H916Kq6455S"
+    }
+    
     // Start pre-fetching slots immediately
     this.startPreFetching()
   }

@@ -1,5 +1,8 @@
 const express = require("express")
+const axios = require("axios")
 const GHLClient = require("../services/ghl-client")
+const TimezoneDetector = require("../services/timezone-detector")
+const CallingHoursValidator = require("../services/calling-hours-validator")
 const { parsePhoneNumber, isValidPhoneNumber } = require("libphonenumber-js")
 const { DateTime } = require("luxon")
 require("dotenv").config()
@@ -143,25 +146,7 @@ class VapiWebhookHandler {
 
     // GHL to Vapi integration endpoint (for triggering outbound calls from GHL)
     this.app.post("/webhook/ghl-to-vapi", async (req, res) => {
-      try {
-        console.log("\n🔔 GHL WEBHOOK RECEIVED")
-        console.log("📦 Payload:", JSON.stringify(req.body, null, 2))
-
-        // Handle GHL workflow triggers for outbound calls
-        const contactData = req.body
-
-        // Validate required fields
-        if (!contactData.phone) {
-          return res.status(400).json({ error: "Phone number is required" })
-        }
-
-        // Process and potentially initiate outbound call
-        console.log("✅ GHL webhook processed successfully")
-        res.json({ received: true, contactId: contactData.id })
-      } catch (error) {
-        console.error("❌ Error processing GHL webhook:", error)
-        res.status(500).json({ error: "Internal server error" })
-      }
+      return this.handleGHLToVapi(req, res)
     })
 
     // 404 handler
@@ -433,6 +418,207 @@ class VapiWebhookHandler {
       console.log(`📡 Webhook endpoint: http://localhost:${port}/webhook/vapi`)
       console.log(`🏥 Health check: http://localhost:${port}/health\n`)
     })
+  }
+
+  /**
+   * Handle incoming webhook from GHL to initiate a VAPI call with timezone awareness
+   */
+  async handleGHLToVapi(req, res) {
+    try {
+      const payload = req.body
+      console.log("\n\n📞 ========== GHL → VAPI CALL REQUEST ==========")
+      console.log("📋 Payload:", JSON.stringify(payload, null, 2))
+
+      // Extract data from payload
+      const phone = payload.phone || payload.customer?.number
+      const contactId = payload.contactId || payload.contact_id
+      const name = payload.name || payload.customer?.name || "Customer"
+      const squadId = payload.squadId || process.env.VAPI_SQUAD_ID // Using squad for outbound calls
+      const phoneNumberId = payload.phoneNumberId || process.env.VAPI_PHONE_NUMBER_ID
+
+      // Validation
+      if (!phone) {
+        console.error("❌ Missing phone number")
+        return res.status(400).json({
+          success: false,
+          error: "Missing phone number",
+          message: "phone or customer.number is required"
+        })
+      }
+
+      if (!squadId || !phoneNumberId) {
+        console.error("❌ Missing VAPI configuration")
+        return res.status(500).json({
+          success: false,
+          error: "Missing VAPI configuration",
+          message: "VAPI_SQUAD_ID and VAPI_PHONE_NUMBER_ID must be set"
+        })
+      }
+
+      console.log(`\n📱 Phone: ${phone}`)
+      console.log(`👤 Name: ${name}`)
+      console.log(`🆔 Contact ID: ${contactId || 'Not provided'}`)
+
+      // STEP 1: Detect timezone from phone number
+      const detectedTimezone = TimezoneDetector.detectFromPhone(phone)
+      const timezoneName = TimezoneDetector.getTimezoneName(detectedTimezone)
+      console.log(`\n🌍 Timezone detected: ${timezoneName} (${detectedTimezone})`)
+
+      // STEP 2: Save timezone to GHL (if contact ID provided)
+      if (contactId) {
+        try {
+          console.log(`💾 Saving timezone to GHL contact ${contactId}...`)
+          await this.ghlClient.updateContact(contactId, {
+            timezone: detectedTimezone // GHL built-in field
+          })
+          console.log(`✅ Timezone saved to GHL`)
+        } catch (error) {
+          console.error(`⚠️  Could not save timezone:`, error.message)
+          // Don't fail the call if we can't save timezone
+        }
+      }
+
+      // STEP 3: Check if within calling hours
+      const callingHoursCheck = CallingHoursValidator.isWithinCallingHours(detectedTimezone)
+
+      if (!callingHoursCheck.canCall) {
+        console.log(`\n⏰ ========== OUTSIDE CALLING HOURS ==========`)
+        console.log(`   Reason: ${callingHoursCheck.reason}`)
+        console.log(`   Current time: ${callingHoursCheck.currentTime}`)
+        console.log(`   Next available: ${callingHoursCheck.nextCallTime}`)
+
+        // Update GHL with scheduled retry
+        if (contactId) {
+          try {
+            await this.ghlClient.updateContact(contactId, {
+              customFields: {
+                call_status: 'scheduled_for_business_hours',
+                call_attempts: '0',
+                next_call_scheduled: callingHoursCheck.nextCallTime,
+                last_call_time: new Date().toISOString()
+              }
+            })
+            console.log(`✅ Contact updated with scheduled retry time`)
+          } catch (error) {
+            console.error(`⚠️  Could not update GHL:`, error.message)
+          }
+        }
+
+        console.log("========== END CALL REQUEST (SCHEDULED) ==========\n")
+
+        return res.json({
+          success: true,
+          callInitiated: false,
+          scheduled: true,
+          message: `Call scheduled for business hours (${timezoneName})`,
+          reason: callingHoursCheck.reason,
+          scheduledFor: callingHoursCheck.nextCallTime,
+          timezone: detectedTimezone
+        })
+      }
+
+      // STEP 4: Within calling hours - initiate call via VAPI
+      console.log(`\n✅ WITHIN CALLING HOURS - Proceeding with call`)
+
+      const vapiPayload = {
+        squadId: squadId, // Using squad for outbound calls
+        phoneNumberId: phoneNumberId,
+        customer: {
+          number: phone,
+          name: name
+        }
+      }
+
+      // Add assistant overrides if contact ID is provided
+      if (contactId) {
+        vapiPayload.assistantOverrides = {
+          variableValues: {
+            contact_id: contactId,
+            phone: phone,
+            firstName: name.split(' ')[0],
+            fullName: name,
+            timezone: detectedTimezone
+          }
+        }
+      }
+
+      console.log(`\n🚀 Calling VAPI API...`)
+      console.log(`   Squad ID: ${squadId}`)
+      console.log(`   Phone Number ID: ${phoneNumberId}`)
+
+      const vapiResponse = await axios.post(
+        'https://api.vapi.ai/call',
+        vapiPayload,
+        {
+          headers: {
+            'Authorization': `Bearer ${process.env.VAPI_API_KEY}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      )
+
+      const callId = vapiResponse.data.id
+      console.log(`✅ Call initiated successfully!`)
+      console.log(`   Call ID: ${callId}`)
+
+      // Update GHL with call status
+      if (contactId) {
+        try {
+          // Get current attempt count
+          let currentAttempts = 0
+          try {
+            const contact = await this.ghlClient.getContact(contactId)
+            currentAttempts = parseInt(contact.customFieldsParsed?.call_attempts || "0")
+          } catch (error) {
+            console.log(`⚠️  Could not get current attempts, defaulting to 0`)
+          }
+
+          const newAttempts = currentAttempts + 1
+
+          await this.ghlClient.updateContact(contactId, {
+            customFields: {
+              call_status: 'calling_now',
+              call_attempts: newAttempts.toString(),
+              last_call_time: new Date().toISOString(),
+              vapi_call_id: callId
+            }
+          })
+          console.log(`✅ GHL updated: Attempt #${newAttempts}, status=calling_now`)
+        } catch (error) {
+          console.error(`⚠️  Could not update GHL:`, error.message)
+        }
+      }
+
+      console.log("========== END CALL REQUEST (INITIATED) ==========\n")
+
+      return res.json({
+        success: true,
+        callInitiated: true,
+        callId: callId,
+        message: "Call initiated successfully",
+        timezone: detectedTimezone,
+        phone: phone
+      })
+
+    } catch (error) {
+      console.error("\n❌ ========== ERROR IN GHL → VAPI ==========")
+      console.error(`   Error: ${error.message}`)
+      
+      if (error.response) {
+        console.error(`   Status: ${error.response.status}`)
+        console.error(`   Response:`, JSON.stringify(error.response.data, null, 2))
+      }
+      
+      console.error(error.stack)
+      console.error("========== END ERROR ==========\n")
+
+      return res.status(500).json({
+        success: false,
+        error: "Internal server error",
+        message: error.message,
+        details: error.response?.data || null
+      })
+    }
   }
 }
 
