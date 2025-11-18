@@ -508,11 +508,35 @@ class VapiFunctionHandler {
         throw new Error("GHL_CALENDAR_ID not configured");
       }
 
-      // Extract contactId from message variableValues if not in params (for outbound calls)
+      // 🔥 FIX: Extract contact details from message variableValues if not in params (for confirmation calls)
       let contactId = paramsContactId;
-      if (!contactId && message?.assistant?.variableValues?.contactId) {
-        contactId = message.assistant.variableValues.contactId;
-        console.log(`   📋 Using contactId from call metadata: ${contactId}`);
+      let actualEmail = email;
+      let actualPhone = phone;
+      let actualFullName = fullName;
+      
+      if (message?.assistant?.variableValues) {
+        const vars = message.assistant.variableValues;
+        
+        // Use variableValues if params are empty or missing
+        if (!contactId && vars.contactId) {
+          contactId = vars.contactId;
+          console.log(`   📋 Using contactId from call metadata: ${contactId}`);
+        }
+        
+        if ((!actualEmail || actualEmail === '') && vars.email) {
+          actualEmail = vars.email;
+          console.log(`   📧 Using email from call metadata: ${actualEmail}`);
+        }
+        
+        if ((!actualPhone || actualPhone === '') && vars.phone) {
+          actualPhone = vars.phone;
+          console.log(`   📞 Using phone from call metadata: ${actualPhone}`);
+        }
+        
+        if ((!actualFullName || actualFullName === '') && (vars.firstName || vars.lastName)) {
+          actualFullName = `${vars.firstName || ''} ${vars.lastName || ''}`.trim();
+          console.log(`   👤 Using fullName from call metadata: ${actualFullName}`);
+        }
       }
 
       // Validate we have a contactId
@@ -591,10 +615,10 @@ class VapiFunctionHandler {
       const timeFormatted = dateTime.toFormat("h:mm a"); // e.g., "2:00 PM"
       
       let successMessage = `Perfect! I've scheduled your appointment for ${dateFormatted} at ${timeFormatted}.`;
-      if (email) {
-        successMessage += ` You'll receive a confirmation email shortly at ${email}.`;
-      } else {
+      if (actualEmail) {
         successMessage += ` You'll receive a confirmation email shortly.`;
+      } else {
+        successMessage += ` You'll receive a confirmation shortly.`;
       }
 
       return {
@@ -818,7 +842,45 @@ class VapiFunctionHandler {
       return now.plus({ days: 1 });
     }
 
-    // Handle day names (e.g., "Monday", "next Friday")
+    // 🔥 FIX: Check for FULL DATES FIRST before day names
+    // Try to parse as ISO date or standard date format
+    try {
+      const parsed = DateTime.fromISO(dateString, { zone: timezone });
+      if (parsed.isValid) {
+        return parsed;
+      }
+    } catch (e) {
+      // Ignore and try other formats
+    }
+
+    // Try to parse as a more flexible date format (e.g., "November 15th", "Nov 15", "November 15", "11/15")
+    const dateFormats = [
+      "MMMM d",        // "November 15"
+      "MMMM d, yyyy",  // "November 15, 2025"
+      "MMM d",         // "Nov 15"
+      "MMM d, yyyy",   // "Nov 15, 2025"
+      "M/d",           // "11/15"
+      "M/d/yyyy",      // "11/15/2025"
+      "d MMMM",        // "15 November"
+      "d MMM",         // "15 Nov"
+    ];
+
+    for (const format of dateFormats) {
+      try {
+        const parsed = DateTime.fromFormat(dateString, format, { zone: timezone });
+        if (parsed.isValid) {
+          // If the parsed date is in the past, assume next year (unless it's within the last 7 days)
+          if (parsed < now.minus({ days: 7 })) {
+            return parsed.plus({ years: 1 });
+          }
+          return parsed;
+        }
+      } catch (e) {
+        // Try next format
+      }
+    }
+
+    // ONLY AFTER trying full dates, check for day names (e.g., "Monday", "next Friday")
     const dayNames = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
     const dayMatch = dayNames.find(day => lowerDate.includes(day));
     
@@ -832,32 +894,12 @@ class VapiFunctionHandler {
       }
       
       // If the day is today or already passed this week, go to next week
-      if (daysToAdd === 0 && !lowerDate.includes("today")) {
+      // BUT ONLY if the string is just a day name (not a full date like "Tuesday, November 18")
+      if (daysToAdd === 0 && !lowerDate.includes("today") && !lowerDate.match(/\d/)) {
         daysToAdd = 7;
       }
       
       return now.plus({ days: daysToAdd });
-    }
-
-    // Try to parse as ISO date or standard date format
-    try {
-      const parsed = DateTime.fromISO(dateString, { zone: timezone });
-      if (parsed.isValid) {
-        return parsed;
-      }
-    } catch (e) {
-      // Ignore and try other formats
-    }
-
-    // Try to parse as a more flexible date format (e.g., "November 15th", "Nov 15", "11/15")
-    try {
-      const parsed = DateTime.fromFormat(dateString, "MMMM d", { zone: timezone });
-      if (parsed.isValid) {
-        // If the parsed date is in the past, assume next year
-        return parsed < now ? parsed.plus({ years: 1 }) : parsed;
-      }
-    } catch (e) {
-      // Ignore
     }
 
     // Fallback: return tomorrow if we can't parse it
