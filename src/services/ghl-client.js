@@ -184,9 +184,40 @@ class GHLClient {
     }
   }
 
+  /**
+   * Convert friendly custom fields object to GHL v2 API format
+   * Input: { call_status: "retry_scheduled", call_attempts: "1" }
+   * Output: [{ id: "abc123", field_value: "retry_scheduled" }, { id: "def456", field_value: "1" }]
+   */
+  convertCustomFieldsToV2(customFieldsObject) {
+    const v2Array = []
+    
+    for (const [key, value] of Object.entries(customFieldsObject)) {
+      const fieldId = this.customFieldIds[key]
+      
+      if (!fieldId) {
+        console.log(`⚠️  Unknown custom field: ${key} - skipping`)
+        continue
+      }
+      
+      v2Array.push({
+        id: fieldId,
+        field_value: value
+      })
+    }
+    
+    console.log(`   ✅ Converted ${v2Array.length} custom fields to GHL format`)
+    return v2Array
+  }
+
   // Update contact with call results
   async updateContact(contactId, updateData) {
     try {
+      // Convert custom fields to GHL v2 format if present
+      if (updateData.customFields && typeof updateData.customFields === 'object' && !Array.isArray(updateData.customFields)) {
+        updateData.customFields = this.convertCustomFieldsToV2(updateData.customFields)
+      }
+      
       const response = await axios.put(
         `${this.baseURL}/contacts/${contactId}`,
         updateData,
@@ -203,6 +234,35 @@ class GHLClient {
     }
   }
 
+  /**
+   * Parse custom fields array from GHL into friendly object
+   * Input: [{ id: "abc123", value: "retry_scheduled" }, { id: "def456", value: "1" }]
+   * Output: { call_status: "retry_scheduled", call_attempts: "1" }
+   */
+  parseCustomFields(customFieldsArray) {
+    const parsed = {}
+    
+    if (!customFieldsArray || !Array.isArray(customFieldsArray)) {
+      return parsed
+    }
+    
+    // Create reverse ID mapping
+    const idToKey = {}
+    for (const [key, id] of Object.entries(this.customFieldIds)) {
+      if (id) idToKey[id] = key
+    }
+    
+    // Parse each field
+    customFieldsArray.forEach(field => {
+      const key = idToKey[field.id]
+      if (key) {
+        parsed[key] = field.value || field.field_value || ''
+      }
+    })
+    
+    return parsed
+  }
+
   // Get contact details
   async getContact(contactId) {
     try {
@@ -210,7 +270,15 @@ class GHLClient {
         `${this.baseURL}/contacts/${contactId}`,
         { headers: this.headers }
       )
-      return response.data
+      
+      const contact = response.data.contact || response.data
+      
+      // Parse custom fields for easier access
+      if (contact.customFields && Array.isArray(contact.customFields)) {
+        contact.customFieldsParsed = this.parseCustomFields(contact.customFields)
+      }
+      
+      return contact
     } catch (error) {
       console.error(
         "❌ Error getting contact from GHL:",
