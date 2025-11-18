@@ -383,17 +383,32 @@ class VapiFunctionHandler {
       );
       
       // If the exact time is available, return it immediately
+      // CRITICAL FIX: Check if the returned slot EXACTLY matches the requested time
+      // Not just any slot in the 30-minute window
       if (exactAvailability.slots && exactAvailability.slots.length > 0) {
-        console.log("✅ Exact requested time is available!");
-        return {
-          success: true,
-          message: `Perfect! ${requestedDateTime.toFormat('h:mm a')} on ${parsedDate.toFormat('MMMM dd')} is available. Would you like me to book that for you?`,
-          data: {
-            exactMatch: true,
-            availableSlots: exactAvailability.slots,
-            requestedTime: requestedDateTime.toFormat('h:mm a'),
-          },
-        };
+        // Parse the first available slot
+        const firstSlot = DateTime.fromISO(exactAvailability.slots[0], { zone: tz });
+        
+        // Check if it matches the EXACT requested time (same hour and minute)
+        const exactMatch = firstSlot.hour === requestedDateTime.hour && 
+                          firstSlot.minute === requestedDateTime.minute;
+        
+        if (exactMatch) {
+          console.log("✅ Exact requested time is available!");
+          return {
+            success: true,
+            message: `Perfect! ${requestedDateTime.toFormat('h:mm a')} on ${parsedDate.toFormat('MMMM dd')} is available. Would you like me to book that for you?`,
+            data: {
+              exactMatch: true,
+              availableSlots: [exactAvailability.slots[0]], // Only return the exact matching slot
+              requestedTime: requestedDateTime.toFormat('h:mm a'),
+            },
+          };
+        }
+        
+        // If the slot doesn't match exactly, log it and fall through to alternatives
+        console.log(`⚠️  Found slot at ${firstSlot.toFormat('h:mm a')}, but requested ${requestedDateTime.toFormat('h:mm a')}`);
+        console.log("   Treating as unavailable and searching for alternatives...");
       }
       
       console.log("❌ Exact requested time is NOT available");
