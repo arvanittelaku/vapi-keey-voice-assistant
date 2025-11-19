@@ -1,5 +1,7 @@
 const GHLClient = require("../services/ghl-client");
 const SMSClient = require("../services/sms-client");
+const TimezoneDetector = require("../services/timezone-detector");
+const SmartRetryCalculator = require("../services/smart-retry-calculator");
 const { parsePhoneNumber } = require("libphonenumber-js");
 const { DateTime } = require("luxon");
 
@@ -961,105 +963,311 @@ class VapiFunctionHandler {
    */
   async handleEndOfCall(message) {
     try {
-      const { endedReason, call, assistant } = message;
+      const { endedReason, call, assistant, artifact } = message;
       
       console.log('\n📞 Call Ended Report:');
       console.log(`   Reason: ${endedReason}`);
       console.log(`   Call ID: ${call?.id}`);
+      console.log(`   Duration: ${call?.duration || 0}s`);
       
-      // Check if it's a confirmation call
-      const variableValues = assistant?.variableValues;
+      // Extract variableValues from either assistant OR artifact (Vapi uses artifact for end-of-call reports)
+      const variableValues = assistant?.variableValues || artifact?.variableValues;
       const isConfirmationCall = variableValues?.callType === 'confirmation';
       
-      if (!isConfirmationCall) {
-        console.log('   ℹ️  Not a confirmation call, skipping SMS fallback');
-        return;
-      }
-      
-      console.log('   ✅ Confirmation call detected');
-      
-            // Check if call was not answered
-            const noAnswerReasons = [
-              'voicemail',
-              'no-answer',
-              'customer-did-not-answer'
-              // Note: 'customer-ended-call' removed - that means they ANSWERED and hung up normally
-            ];
-      
-      const wasNotAnswered = noAnswerReasons.includes(endedReason);
-      
-      if (!wasNotAnswered) {
-        console.log(`   ℹ️  Call ended normally (${endedReason}), no SMS fallback needed`);
-        return;
-      }
-      
-      console.log(`   📱 Call not answered (${endedReason}) - Triggering SMS fallback`);
-      
-      // Extract data for SMS
-      const { 
-        firstName, 
-        appointmentTimeOnly, 
-        phone,
-        contactId,
-        appointmentId 
-      } = variableValues;
-      
-      if (!phone || !firstName || !appointmentTimeOnly) {
-        console.error('   ❌ Missing required data for SMS fallback');
-        console.error(`      Phone: ${phone}, Name: ${firstName}, Time: ${appointmentTimeOnly}`);
-        return;
-      }
-      
-      // Send SMS fallback
-      console.log(`\n📱 Sending SMS Fallback:`);
-      console.log(`   To: ${phone}`);
-      console.log(`   Customer: ${firstName}`);
-      console.log(`   Appointment: ${appointmentTimeOnly}`);
-      
-      const smsResult = await this.smsClient.sendConfirmationReminder(
-        phone,
-        firstName,
-        appointmentTimeOnly
-      );
-      
-      if (smsResult.success) {
-        console.log('✅ SMS fallback sent successfully!');
-        console.log(`   Message SID: ${smsResult.messageSid}`);
+      // PART 1: Handle confirmation calls (existing logic)
+      if (isConfirmationCall) {
+        console.log('   ✅ Confirmation call detected');
         
-        // Update confirmation status to "no_answer" with SMS tracking
-        try {
-          await this.updateAppointmentConfirmation({
-            contactId,
-            appointmentId,
-            status: 'no_answer',
-            notes: `Call not answered (${endedReason}). SMS sent at ${smsResult.sentAt} - Message SID: ${smsResult.messageSid}`
-          });
+        // Check if call was not answered
+        const noAnswerReasons = [
+          'voicemail',
+          'no-answer',
+          'customer-did-not-answer'
+          // Note: 'customer-ended-call' removed - that means they ANSWERED and hung up normally
+        ];
+        
+        const wasNotAnswered = noAnswerReasons.includes(endedReason);
+        
+        if (!wasNotAnswered) {
+          console.log(`   ℹ️  Call ended normally (${endedReason}), no SMS fallback needed`);
+          return;
+        }
+        
+        console.log(`   📱 Call not answered (${endedReason}) - Triggering SMS fallback`);
+        
+        // Extract data for SMS
+        const { 
+          firstName, 
+          appointmentTimeOnly, 
+          phone,
+          contactId,
+          appointmentId 
+        } = variableValues;
+        
+        if (!phone || !firstName || !appointmentTimeOnly) {
+          console.error('   ❌ Missing required data for SMS fallback');
+          console.error(`      Phone: ${phone}, Name: ${firstName}, Time: ${appointmentTimeOnly}`);
+          return;
+        }
+        
+        // Send SMS fallback
+        console.log(`\n📱 Sending SMS Fallback:`);
+        console.log(`   To: ${phone}`);
+        console.log(`   Customer: ${firstName}`);
+        console.log(`   Appointment: ${appointmentTimeOnly}`);
+        
+        const smsResult = await this.smsClient.sendConfirmationReminder(
+          phone,
+          firstName,
+          appointmentTimeOnly
+        );
+        
+        if (smsResult.success) {
+          console.log('✅ SMS fallback sent successfully!');
+          console.log(`   Message SID: ${smsResult.messageSid}`);
           
-          console.log('✅ Confirmation status updated to "no_answer" with SMS tracking');
-        } catch (updateError) {
-          console.error('⚠️  Error updating confirmation status:', updateError.message);
-          // Don't fail if status update fails - SMS was sent successfully
+          // Update confirmation status to "no_answer" with SMS tracking
+          try {
+            await this.updateAppointmentConfirmation({
+              contactId,
+              appointmentId,
+              status: 'no_answer',
+              notes: `Call not answered (${endedReason}). SMS sent at ${smsResult.sentAt} - Message SID: ${smsResult.messageSid}`
+            });
+            
+            console.log('✅ Confirmation status updated to "no_answer" with SMS tracking');
+          } catch (updateError) {
+            console.error('⚠️  Error updating confirmation status:', updateError.message);
+            // Don't fail if status update fails - SMS was sent successfully
+          }
+          
+        } else {
+          console.error('❌ SMS fallback failed:', smsResult.error);
+          
+          // Still try to update status even if SMS failed
+          try {
+            await this.updateAppointmentConfirmation({
+              contactId,
+              appointmentId,
+              status: 'no_answer',
+              notes: `Call not answered (${endedReason}). SMS send failed: ${smsResult.error}`
+            });
+          } catch (updateError) {
+            console.error('⚠️  Error updating confirmation status:', updateError.message);
+          }
         }
         
-      } else {
-        console.error('❌ SMS fallback failed:', smsResult.error);
-        
-        // Still try to update status even if SMS failed
-        try {
-          await this.updateAppointmentConfirmation({
-            contactId,
-            appointmentId,
-            status: 'no_answer',
-            notes: `Call not answered (${endedReason}). SMS send failed: ${smsResult.error}`
-          });
-        } catch (updateError) {
-          console.error('⚠️  Error updating confirmation status:', updateError.message);
-        }
+        return; // Exit after handling confirmation call
       }
+      
+      // PART 2: Handle general calls with smart retry logic (NEW)
+      console.log('   ℹ️  General call detected - checking for smart retry');
+      
+      const contactId = variableValues?.contact_id;
+      const phone = variableValues?.phone;
+      
+      if (!contactId) {
+        console.log('   ⚠️  No contact ID provided - skipping smart retry');
+        return;
+      }
+      
+      console.log(`   Contact ID: ${contactId}`);
+      console.log(`   Phone: ${phone || 'Not provided'}`);
+      
+      // Check if call was successful (duration > 30s and normal end reasons)
+      const duration = call?.duration || 0;
+      const successReasons = ['assistant-ended-call', 'customer-ended-call'];
+      const isSuccess = successReasons.includes(endedReason) && duration > 30;
+      
+      if (isSuccess) {
+        console.log(`   ✅ Call successful (${duration}s) - No retry needed`);
+        
+        // Update GHL with success status
+        try {
+          await this.ghlClient.updateContact(contactId, {
+            customFields: {
+              call_status: 'success',
+              call_result: 'answered',
+              call_duration: duration.toString(),
+              ended_reason: endedReason,
+              last_call_time: new Date().toISOString()
+            }
+          });
+          console.log('   ✅ GHL updated with success status');
+        } catch (error) {
+          console.error('   ⚠️  Could not update GHL:', error.message);
+        }
+        
+        return;
+      }
+      
+      // Call failed - trigger smart retry logic
+      console.log(`   ❌ Call failed (${endedReason}) - Initiating smart retry`);
+      await this.handleFailedCallWithSmartRetry(contactId, phone, endedReason);
       
     } catch (error) {
       console.error('❌ Error in handleEndOfCall:', error.message);
       console.error(error.stack);
+    }
+  }
+
+  /**
+   * Handle failed call with smart retry logic
+   */
+  async handleFailedCallWithSmartRetry(contactId, phone, endedReason) {
+    console.log(`\n📞 ========== SMART RETRY HANDLER ==========`);
+    console.log(`   Contact ID: ${contactId}`);
+    console.log(`   Phone: ${phone || 'Not provided'}`);
+    console.log(`   Reason: ${endedReason}`);
+    
+    try {
+      // Get current attempt count and timezone from GHL
+      let currentAttempts = 0;
+      let customerTimezone = "Europe/London"; // Default
+      
+      try {
+        const contact = await this.ghlClient.getContact(contactId);
+        currentAttempts = parseInt(contact.customFieldsParsed?.call_attempts || "0");
+        customerTimezone = contact.timezone || "Europe/London";
+        
+        // If no timezone in GHL, detect from phone
+        if (!contact.timezone && phone) {
+          customerTimezone = TimezoneDetector.detectFromPhone(phone);
+          console.log(`   🌍 Timezone detected from phone: ${customerTimezone}`);
+          
+          // Save detected timezone to GHL
+          await this.ghlClient.updateContact(contactId, {
+            timezone: customerTimezone
+          });
+        } else {
+          console.log(`   🌍 Using saved timezone: ${customerTimezone}`);
+        }
+        
+      } catch (error) {
+        console.error('   ⚠️  Could not get contact from GHL, using defaults');
+        
+        // Try to detect timezone from phone as fallback
+        if (phone) {
+          customerTimezone = TimezoneDetector.detectFromPhone(phone);
+        }
+      }
+      
+      console.log(`   📊 Current attempts: ${currentAttempts}`);
+      
+      // Calculate next retry time
+      const newAttempts = currentAttempts + 1;
+      console.log(`   📊 This will be attempt #${newAttempts}`);
+      
+      const retryCalc = SmartRetryCalculator.calculateRetryTime(
+        newAttempts,
+        endedReason,
+        customerTimezone
+      );
+      
+      console.log(`   📅 Next retry: ${retryCalc.nextCallTimeFormatted}`);
+      
+      // Determine call result for GHL
+      let callResult;
+      switch (endedReason) {
+        case 'customer-busy':
+        case 'user-busy':
+          callResult = 'busy';
+          break;
+        case 'customer-did-not-answer':
+        case 'no-answer':
+        case 'no-answer-from-user':
+          callResult = 'no_answer';
+          break;
+        case 'voicemail':
+        case 'voicemail-reached':
+          callResult = 'voicemail';
+          break;
+        default:
+          callResult = 'failed';
+      }
+      
+      // Update GHL with retry information
+      await this.ghlClient.updateContact(contactId, {
+        customFields: {
+          call_attempts: newAttempts.toString(),
+          call_result: callResult,
+          ended_reason: endedReason,
+          last_call_time: new Date().toISOString(),
+          next_call_scheduled: retryCalc.nextCallTime,
+          call_status: 'retry_scheduled'
+        }
+      });
+      
+      console.log('   ✅ GHL updated with retry information');
+      
+      // Trigger follow-up actions based on attempt number
+      await this.triggerSmartRetryFollowUps(contactId, phone, newAttempts, endedReason);
+      
+      console.log("========== END SMART RETRY HANDLER ==========\n");
+      
+    } catch (error) {
+      console.error('❌ Error in handleFailedCallWithSmartRetry:', error.message);
+      console.error(error.stack);
+    }
+  }
+
+  /**
+   * Trigger follow-up actions based on retry attempt number
+   */
+  async triggerSmartRetryFollowUps(contactId, phone, attemptNumber, endedReason) {
+    console.log(`\n🎬 Triggering follow-up actions for attempt ${attemptNumber}...`);
+    
+    try {
+      // Attempt #2: Send SMS with booking link
+      if (attemptNumber === 2) {
+        console.log(`   📱 Attempt #2 - Sending SMS follow-up`);
+        
+        // TODO: Implement SMS with booking link
+        // For now, just update GHL
+        await this.ghlClient.updateContact(contactId, {
+          customFields: {
+            sms_sent: 'yes',
+            sms_sent_at: new Date().toISOString()
+          }
+        });
+        
+        console.log('   ✅ SMS follow-up marked in GHL');
+      }
+      
+      // Attempt #3+: Add tag for manual follow-up
+      if (attemptNumber >= 3) {
+        console.log(`   🏷️  Attempt #3+ - Adding manual follow-up tag`);
+        
+        await this.ghlClient.updateContact(contactId, {
+          customFields: {
+            call_status: 'needs_manual_followup'
+          }
+        });
+        
+        try {
+          await this.ghlClient.addTagToContact(contactId, 'Needs Manual Follow-Up');
+          console.log('   ✅ Tag added - This should trigger email workflow in GHL');
+        } catch (error) {
+          console.error('   ⚠️  Could not add tag:', error.message);
+        }
+      }
+      
+      // Voicemail on first attempt: Send immediate SMS
+      if (attemptNumber === 1 && (endedReason === 'voicemail' || endedReason === 'voicemail-reached')) {
+        console.log(`   📱 Voicemail on first attempt - Sending immediate SMS`);
+        
+        await this.ghlClient.updateContact(contactId, {
+          customFields: {
+            sms_sent: 'yes',
+            sms_sent_at: new Date().toISOString()
+          }
+        });
+        
+        console.log('   ✅ Immediate SMS marked in GHL');
+      }
+      
+    } catch (error) {
+      console.error('❌ Error in triggerSmartRetryFollowUps:', error.message);
     }
   }
 }

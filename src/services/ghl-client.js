@@ -235,6 +235,27 @@ class GHLClient {
   }
 
   /**
+   * Add a tag to a contact
+   */
+  async addTagToContact(contactId, tagName) {
+    try {
+      const response = await axios.post(
+        `${this.baseURL}/contacts/${contactId}/tags`,
+        { tags: [tagName] },
+        { headers: this.headers }
+      )
+      console.log(`✅ Tag "${tagName}" added to contact ${contactId}`)
+      return response.data
+    } catch (error) {
+      console.error(
+        `❌ Error adding tag to contact:`,
+        error.response?.data || error.message
+      )
+      throw error
+    }
+  }
+
+  /**
    * Parse custom fields array from GHL into friendly object
    * Input: [{ id: "abc123", value: "retry_scheduled" }, { id: "def456", value: "1" }]
    * Output: { call_status: "retry_scheduled", call_attempts: "1" }
