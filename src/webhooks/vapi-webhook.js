@@ -418,6 +418,7 @@ class VapiWebhookHandler {
       console.log(`📡 Webhook endpoint: http://localhost:${port}/webhook/vapi`)
       console.log(`🏥 Health check: http://localhost:${port}/health\n`)
     })
+    return this.app
   }
 
   /**
