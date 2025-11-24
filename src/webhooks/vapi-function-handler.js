@@ -132,6 +132,10 @@ class VapiFunctionHandler {
                 result = await this.cancelAppointment(parameters);
                 break;
 
+              case "transfer_call_keey":
+                result = await this.transferCall(parameters);
+                break;
+
               default:
                 console.error(`❌ Unknown function: ${functionName}`);
                 result = {
@@ -1268,6 +1272,44 @@ class VapiFunctionHandler {
       
     } catch (error) {
       console.error('❌ Error in triggerSmartRetryFollowUps:', error.message);
+    }
+  }
+
+  /**
+   * Transfer call to a specialist
+   * @param {Object} params - Transfer parameters
+   * @param {string} params.destinationNumber - Phone number to transfer to
+   * @param {string} params.reason - Reason for transfer
+   */
+  async transferCall(params) {
+    try {
+      const { destinationNumber, reason = 'customer request' } = params;
+
+      console.log('\n📞 Transferring call...');
+      console.log('   Destination:', destinationNumber || 'default specialist number');
+      console.log('   Reason:', reason);
+
+      // Vapi supports call transfers by returning a special response
+      // The AI will receive this message and Vapi will handle the transfer
+      const transferMessage = "One moment please, I'm connecting you with a specialist now.";
+
+      return {
+        success: true,
+        message: transferMessage,
+        action: 'transfer',
+        data: {
+          destinationNumber: destinationNumber || process.env.TRANSFER_PHONE_NUMBER || '+442039673687',
+          reason: reason,
+          transferredAt: new Date().toISOString()
+        }
+      };
+    } catch (error) {
+      console.error('❌ Error transferring call:', error.message);
+      return {
+        success: false,
+        message: "I apologize, but I'm having trouble transferring your call. Let me help you directly instead.",
+        error: error.message
+      };
     }
   }
 }
