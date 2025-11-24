@@ -58,7 +58,8 @@ async function testHealthCheck() {
   try {
     const response = await axios.get(`${SERVER_URL}/health`);
     
-    if (response.status === 200 && response.data.status === 'ok') {
+    // Accept both "ok" and "healthy" status
+    if (response.status === 200 && (response.data.status === 'ok' || response.data.status === 'healthy')) {
       log('✅', 'Health Check', 'PASS', `Server responding: ${response.data.status}`);
       return true;
     } else {
