@@ -38,7 +38,7 @@ console.log('\n🔍 VERIFYING TOOLS BY ID\n');
     console.log('🛠️  Fetching tool details:\n');
     
     const expectedTools = [
-      'check_calendar_availability',
+      'check_calendar_availability_keey',  // Note: has _keey suffix
       'book_calendar_appointment_keey',
       'cancel_appointment_keey',
       'update_appointment_confirmation'
