@@ -83,7 +83,7 @@ async function testCalendarAvailability() {
         toolCalls: [{
           id: 'test-availability-1',
           function: {
-            name: 'check_calendar_availability',
+            name: 'check_calendar_availability_keey',
             arguments: {
               requestedDate: 'tomorrow',
               requestedTime: '3 PM',
