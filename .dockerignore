@@ -1,7 +1,7 @@
 # Dependencies
 node_modules
 npm-debug.log
-package-lock.json
+# NOTE: package-lock.json is NEEDED for npm ci in Dockerfile - do NOT exclude it
 
 # Environment files
 .env

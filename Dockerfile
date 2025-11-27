@@ -12,7 +12,8 @@ WORKDIR /app
 COPY package*.json ./
 
 # Install production dependencies only
-RUN npm ci --only=production --ignore-scripts && \
+# npm ci requires package-lock.json (make sure .dockerignore doesn't exclude it)
+RUN npm ci --omit=dev --ignore-scripts && \
     npm cache clean --force
 
 # ============================================
