@@ -243,75 +243,93 @@ class VapiWebhookHandler {
   }
 
   /**
-   * Create or update contact in GHL
+   * Create or update contact in GHL (Simplified - Inbound leads)
    */
   async createContact(params) {
     const { 
-      firstName, 
-      lastName, 
       email, 
       phone, 
-      propertyAddress, 
-      city, 
-      postcode, 
-      bedrooms,
-      region = "London"
+      postcode,
+      postalCode // Support both naming conventions
     } = params
 
     try {
-      // Normalize phone number
-      const countryCode = region === "Dubai" ? "AE" : "GB"
-      const normalizedPhone = this.normalizePhoneNumber(phone, countryCode)
+      // Validate required fields
+      if (!email || !phone) {
+        console.error("❌ Missing required fields: email and phone")
+        return {
+          success: false,
+          message: "I need both your email and phone number to continue."
+        }
+      }
+
+      console.log("\n👤 Creating/updating contact (simplified)...")
+      console.log(`   Email: ${email}`)
+      console.log(`   Phone: ${phone}`)
+      console.log(`   Postal Code: ${postcode || postalCode}`)
+
+      // Normalize phone number (default to GB)
+      const normalizedPhone = this.normalizePhoneNumber(phone, "GB")
+
+      // Generate a name from email
+      const emailPrefix = email.split('@')[0]
+      const generatedFirstName = emailPrefix.charAt(0).toUpperCase() + emailPrefix.slice(1)
+      const generatedLastName = "Lead"
 
       // Search for existing contact
       let contact = await this.ghlClient.searchContact(email, normalizedPhone)
 
+      const finalPostalCode = postcode || postalCode
+
       if (contact && contact.contacts && contact.contacts.length > 0) {
         // Update existing contact
         const existingContact = contact.contacts[0]
-        await this.ghlClient.updateContact(existingContact.id, {
-          firstName,
-          lastName,
+        const updatePayload = {
           email,
           phone: normalizedPhone,
-          address1: propertyAddress,
-          city,
-          postalCode: postcode,
           customField: {
-            bedrooms: bedrooms?.toString(),
-            region: region,
-            lead_source: "Voice Assistant"
+            lead_source: "Voice Assistant - Inbound"
           }
-        })
+        }
+        
+        // Add postal code if provided
+        if (finalPostalCode) {
+          updatePayload.postalCode = finalPostalCode
+        }
+
+        await this.ghlClient.updateContact(existingContact.id, updatePayload)
 
         console.log("✅ Updated existing contact:", existingContact.id)
         return {
           success: true,
           contactId: existingContact.id,
-          message: "Your information has been updated."
+          message: "Thank you! I've updated your information."
         }
       } else {
         // Create new contact
-        const newContact = await this.ghlClient.createContact({
-          firstName,
-          lastName,
+        const createPayload = {
+          firstName: generatedFirstName,
+          lastName: generatedLastName,
           email,
           phone: normalizedPhone,
-          address1: propertyAddress,
-          city,
-          postalCode: postcode,
+          source: "Voice Assistant - Inbound Lead",
           customField: {
-            bedrooms: bedrooms?.toString(),
-            region: region,
-            lead_source: "Voice Assistant"
+            lead_source: "Voice Assistant - Inbound"
           }
-        })
+        }
+
+        // Add postal code if provided
+        if (finalPostalCode) {
+          createPayload.postalCode = finalPostalCode
+        }
+
+        const newContact = await this.ghlClient.createContact(createPayload)
 
         console.log("✅ Created new contact:", newContact.contact.id)
         return {
           success: true,
           contactId: newContact.contact.id,
-          message: "Thank you! Your information has been saved."
+          message: "Thank you! I've saved your information."
         }
       }
     } catch (error) {

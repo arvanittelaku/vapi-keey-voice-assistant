@@ -246,21 +246,25 @@ class VapiFunctionHandler {
   async createContact(params) {
     try {
       const {
-        firstName,
-        lastName,
         email,
         phone,
-        propertyAddress,
-        city,
         postcode,
-        bedrooms,
-        region,
+        postalCode, // Support both naming conventions
       } = params;
 
-      console.log("\n👤 Creating/updating contact...");
-      console.log(`   Name: ${firstName} ${lastName}`);
+      console.log("\n👤 Creating/updating contact (simplified)...");
       console.log(`   Email: ${email}`);
       console.log(`   Phone: ${phone}`);
+      console.log(`   Postal Code: ${postcode || postalCode}`);
+
+      // Validate required fields
+      if (!email || !phone) {
+        console.error("❌ Missing required fields: email and phone are required");
+        return {
+          success: false,
+          message: "I need both your email and phone number to continue. Could you provide those please?",
+        };
+      }
 
       // Normalize phone number
       let normalizedPhone = phone;
@@ -274,29 +278,27 @@ class VapiFunctionHandler {
         console.log("   ⚠️  Could not parse phone number, using as-is");
       }
 
-      // Build contact payload
+      // Generate a name from email if not provided
+      const emailPrefix = email.split('@')[0];
+      const generatedName = emailPrefix.charAt(0).toUpperCase() + emailPrefix.slice(1);
+
+      // Build contact payload with simplified fields
       const contactPayload = {
-        firstName,
-        lastName,
+        firstName: generatedName,
+        lastName: "Lead", // Generic last name
         email,
         phone: normalizedPhone,
-        source: "Voice Assistant - Lead Qualification",
+        source: "Voice Assistant - Inbound Lead",
       };
 
-      // Add optional fields
-      if (propertyAddress) contactPayload.address1 = propertyAddress;
-      if (city) contactPayload.city = city;
-      if (postcode) contactPayload.postalCode = postcode;
-
-      // Add custom fields as tags
-      if (region || bedrooms) {
-        contactPayload.tags = [
-          region,
-          bedrooms ? `${bedrooms} bedrooms` : null,
-        ].filter(Boolean);
+      // Add postal code if provided
+      const finalPostalCode = postcode || postalCode;
+      if (finalPostalCode) {
+        contactPayload.postalCode = finalPostalCode;
       }
 
       console.log("📝 Creating contact in GHL...");
+      console.log("   Payload:", JSON.stringify(contactPayload, null, 2));
       const contact = await this.ghlClient.createContact(contactPayload);
 
       console.log("✅ Contact created/updated successfully");
@@ -304,11 +306,9 @@ class VapiFunctionHandler {
 
       return {
         success: true,
-        message: `Thank you for providing that information. I've saved your details. Your contact ID is ${contact.id}.`,
+        message: `Thank you! I've saved your information.`,
         data: {
           contactId: contact.id,
-          firstName: contact.firstName,
-          lastName: contact.lastName,
           email: contact.email,
           phone: contact.phone,
         },
