@@ -1,0 +1,39 @@
+version: '3.8'
+
+services:
+  keey-voice-assistant:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: keey-voice-assistant
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - DEFAULT_TIMEZONE=Europe/London
+      - DEFAULT_COUNTRY_CODE=GB
+      - COMPANY_NAME=Keey
+      - COMPANY_PHONE=0203 967 3687
+      - COMPANY_WEBSITE=https://keey.co.uk
+      # IMPORTANT: Add your actual secrets here or use .env file
+      # - VAPI_API_KEY=${VAPI_API_KEY}
+      # - GHL_API_KEY=${GHL_API_KEY}
+      # - GHL_LOCATION_ID=${GHL_LOCATION_ID}
+      # - GHL_CALENDAR_ID=${GHL_CALENDAR_ID}
+      # - WEBHOOK_BASE_URL=${WEBHOOK_BASE_URL}
+    env_file:
+      - .env  # Optional: use .env file for local testing
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+

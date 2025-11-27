@@ -1,0 +1,71 @@
+# Dependencies
+node_modules
+npm-debug.log
+package-lock.json
+
+# Environment files
+.env
+.env.*
+!env.example
+
+# Git
+.git
+.gitignore
+.gitattributes
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Documentation (not needed in container)
+*.md
+!README.md
+
+# Scripts (deployment/testing - not needed in production)
+scripts/deploy-*.js
+scripts/test-*.js
+scripts/check-*.js
+scripts/fix-*.js
+scripts/verify-*.js
+scripts/*-test*.js
+
+# Testing files
+postman
+postman-tests
+
+# Logs
+*.log
+server.log
+
+# Build artifacts
+dist
+build
+
+# Temporary files
+temp-*
+*.tmp
+
+# Docker
+Dockerfile
+.dockerignore
+docker-compose.yml
+
+# CI/CD
+.github
+.gitlab-ci.yml
+
+# Documentation folders
+agent-configs
+knowledge-base
+tool-definitions
+
+# Other
+LICENSE
+
