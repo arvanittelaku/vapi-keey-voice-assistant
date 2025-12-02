@@ -22,6 +22,15 @@ app.use((req, res, next) => {
   next()
 })
 
+// Health check endpoint (for monitoring and validation)
+app.get("/health", (req, res) => {
+  res.json({ 
+    status: "healthy",
+    service: "GHL to Vapi Bridge",
+    timestamp: new Date().toISOString()
+  })
+})
+
 // TEST: Register a route directly in server.js to confirm Express works
 app.get("/test-direct", (req, res) => {
   res.json({ message: "Direct route in server.js works!" })

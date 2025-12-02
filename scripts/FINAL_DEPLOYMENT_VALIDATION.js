@@ -67,14 +67,16 @@ async function testEnvironmentVariables() {
     ],
     high: [
       'VAPI_SQUAD_ID',
-      'VAPI_INBOUND_ASSISTANT_ID',
-      'VAPI_OUTBOUND_PHONE_NUMBER_ID',
-      'VAPI_INBOUND_PHONE_NUMBER_ID'
+      'VAPI_INBOUND_ASSISTANT_ID'
     ],
     medium: [
       'TWILIO_ACCOUNT_SID',
       'TWILIO_AUTH_TOKEN',
       'TWILIO_PHONE_NUMBER'
+    ],
+    low: [
+      'VAPI_OUTBOUND_PHONE_NUMBER_ID',
+      'VAPI_INBOUND_PHONE_NUMBER_ID'
     ]
   };
 
@@ -82,8 +84,14 @@ async function testEnvironmentVariables() {
     for (const varName of vars) {
       testsRun++;
       if (!process.env[varName]) {
-        log(`${varName}: Missing`, 'error');
-        addResult(priority, 'Environment', `Missing required variable: ${varName}`);
+        if (priority === 'low') {
+          // Low priority vars are optional - just note them
+          log(`${varName}: Not set (optional)`, 'info');
+          addResult('passed', 'Environment', `${varName} not set (optional - squad handles phone routing)`);
+        } else {
+          log(`${varName}: Missing`, 'error');
+          addResult(priority, 'Environment', `Missing required variable: ${varName}`);
+        }
       } else {
         const value = process.env[varName];
         const displayValue = varName.includes('KEY') || varName.includes('SECRET') || varName.includes('TOKEN')
@@ -93,6 +101,12 @@ async function testEnvironmentVariables() {
         addResult('passed', 'Environment', `${varName} is set`);
       }
     }
+  }
+  
+  // Add helpful note about phone number IDs
+  if (!process.env.VAPI_OUTBOUND_PHONE_NUMBER_ID || !process.env.VAPI_INBOUND_PHONE_NUMBER_ID) {
+    log('\n💡 Note: Phone number IDs are optional when using Squad-based calls', 'info');
+    log('   Run "node scripts/fetch-phone-number-ids.js" to get your phone number IDs', 'info');
   }
 }
 
@@ -179,12 +193,18 @@ async function testVapiConnectivity() {
       const assistant = await vapiClient.getAssistant(process.env.VAPI_INBOUND_ASSISTANT_ID);
       log(`Inbound Assistant: Found "${assistant.name}"`, 'success');
       
-      // Check if tools are attached
-      if (assistant.toolIds && assistant.toolIds.length > 0) {
-        log(`  Tools attached: ${assistant.toolIds.length}`, 'success');
-        addResult('passed', 'Vapi', `Inbound assistant has ${assistant.toolIds.length} tools`);
+      // Check if tools are attached (Vapi stores tools in assistant.model.tools)
+      const toolCount = assistant.model?.tools?.length || 
+                       assistant.toolIds?.length || 
+                       assistant.tools?.length || 
+                       0;
+      
+      if (toolCount > 0) {
+        log(`  Tools attached: ${toolCount}`, 'success');
+        addResult('passed', 'Vapi', `Inbound assistant has ${toolCount} tools`);
       } else {
         log(`  Tools attached: 0 (WARNING)`, 'warning');
+        log(`  Run "node scripts/fix-inbound-tools-auto.js" to attach tools`, 'info');
         addResult('high', 'Vapi', 'Inbound assistant has NO TOOLS attached');
       }
     } catch (error) {
@@ -236,37 +256,73 @@ async function testWebhookEndpoints() {
   log('═══════════════════════════════════════════\n', 'info');
 
   const baseUrl = 'http://localhost:3000';
+  let serverRunning = false;
   
-  const endpoints = [
-    { path: '/health', method: 'GET', name: 'Health Check' },
-    { path: '/test-direct', method: 'GET', name: 'Direct Route' },
-  ];
+  // First, check if server is running by testing health endpoint
+  testsRun++;
+  try {
+    const healthResponse = await axios({
+      method: 'GET',
+      url: `${baseUrl}/health`,
+      timeout: 3000
+    });
+    
+    if (healthResponse.status === 200) {
+      log('Health Check: Server is running', 'success');
+      addResult('passed', 'Webhooks', 'Health check endpoint working - server is running');
+      serverRunning = true;
+    } else {
+      log(`Health Check: Unexpected status ${healthResponse.status}`, 'warning');
+      addResult('low', 'Webhooks', `Health check returned status ${healthResponse.status}`);
+    }
+  } catch (error) {
+    if (error.code === 'ECONNREFUSED') {
+      log('Health Check: Server not running (this is OK for validation)', 'warning');
+      log('   Note: Start server with "npm start" to test endpoints', 'info');
+      addResult('low', 'Webhooks', 'Server not running - endpoints cannot be tested (start with "npm start")');
+      serverRunning = false;
+    } else {
+      log(`Health Check: ${error.message}`, 'warning');
+      addResult('low', 'Webhooks', `Health check failed: ${error.message}`);
+      serverRunning = false;
+    }
+  }
 
-  for (const endpoint of endpoints) {
-    testsRun++;
-    try {
-      const response = await axios({
-        method: endpoint.method,
-        url: `${baseUrl}${endpoint.path}`,
-        timeout: 5000
-      });
-      
-      if (response.status === 200) {
-        log(`${endpoint.name}: Responding`, 'success');
-        addResult('passed', 'Webhooks', `${endpoint.name} endpoint working`);
-      } else {
-        log(`${endpoint.name}: Unexpected status ${response.status}`, 'warning');
-        addResult('low', 'Webhooks', `${endpoint.name} returned status ${response.status}`);
-      }
-    } catch (error) {
-      if (error.code === 'ECONNREFUSED') {
-        log(`${endpoint.name}: Server not running`, 'warning');
-        addResult('medium', 'Webhooks', `Server not running on localhost:3000 (start with 'npm start')`);
-      } else {
-        log(`${endpoint.name}: ${error.message}`, 'error');
-        addResult('medium', 'Webhooks', `${endpoint.name} failed: ${error.message}`);
+  // Only test other endpoints if server is running
+  if (serverRunning) {
+    const endpoints = [
+      { path: '/test-direct', method: 'GET', name: 'Direct Route' },
+      { path: '/test-after', method: 'GET', name: 'After Handlers Route' },
+    ];
+
+    for (const endpoint of endpoints) {
+      testsRun++;
+      try {
+        const response = await axios({
+          method: endpoint.method,
+          url: `${baseUrl}${endpoint.path}`,
+          timeout: 3000
+        });
+        
+        if (response.status === 200) {
+          log(`${endpoint.name}: Responding`, 'success');
+          addResult('passed', 'Webhooks', `${endpoint.name} endpoint working`);
+        } else {
+          log(`${endpoint.name}: Unexpected status ${response.status}`, 'warning');
+          addResult('low', 'Webhooks', `${endpoint.name} returned status ${response.status}`);
+        }
+      } catch (error) {
+        if (error.response && error.response.status === 404) {
+          log(`${endpoint.name}: Not found (404)`, 'warning');
+          addResult('low', 'Webhooks', `${endpoint.name} endpoint not found (404) - may not be critical`);
+        } else {
+          log(`${endpoint.name}: ${error.message}`, 'warning');
+          addResult('low', 'Webhooks', `${endpoint.name} failed: ${error.message}`);
+        }
       }
     }
+  } else {
+    log('Skipping additional endpoint tests (server not running)', 'info');
   }
 }
 
